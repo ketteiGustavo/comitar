@@ -339,6 +339,7 @@ generate_commit() {
   commit_final="${commit_prefix}${tipo}${commit_scope_formatted}: ${mensagem}"
   echo -e "${BLUE}Commit final:${NC} $commit_final"
   generate_changelog
+  git add $CHANGELOG_FILE
 
   git add -A
   if git commit -m "$commit_final"; then
