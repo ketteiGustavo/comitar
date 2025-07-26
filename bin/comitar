@@ -12,7 +12,7 @@
 
 set -e
 
-CONFIG_FILE="./config/comitar.json"
+CONFIG_FILE=".comitar.json"
 CHANGELOG_FILE=""
 INSTALL_DIR="$HOME/.local/bin"
 
@@ -114,7 +114,7 @@ load_config() {
       cp "$global_config_source" "$project_config_file"
       echo -e "${GREEN}✔ Arquivo de configuração copiado para '$project_config_file'.${NC}"
       if ! grep -q ".comitar.json" "$git_root/.gitignore" 2>/dev/null; then
-        echo -e "\n# Comitar config file\nconfig/comitar.json" >> "$git_root/.gitignore"
+        echo -e "\n# Comitar config file\n.comitar.json" >> "$git_root/.gitignore"
         echo -e "${GREEN}✔ '.comitar.json' adicionado ao .gitignore.${NC}"
       fi
     fi
