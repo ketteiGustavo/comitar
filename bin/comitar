@@ -63,6 +63,10 @@ test_colors() {
     BLINK=""
   fi
 }
+
+if [[ ! -f "$CONFIG_FILE" ]]; then
+  cp "$COMITAR_INSTALL_ROOT/config/comitar.json" "$WORK_DIR/$CONFIG_FILE"
+fi
 test_colors
 
 show_version() {
