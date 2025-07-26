@@ -1,0 +1,16 @@
+# Autocomplete para o comando 'comitar'
+# Fonte: https://github.com/ketteiGustavo/comitar
+
+_comitar_autocomplete() {
+  local cur prev opts
+  COMPREPLY=()
+  cur="${COMP_WORDS[COMP_CWORD]}"
+  prev="${COMP_WORDS[COMP_CWORD-1]}"
+
+  opts="--help --version --install-hook --commit --upgrade --uninstall --changelog"
+
+  COMPREPLY=( $(compgen -W "${opts}" -- "$cur") )
+  return 0
+}
+
+complete -F _comitar_autocomplete comitar

@@ -1,0 +1,528 @@
+#!/usr/bin/env bash
+################################################################################
+# comitar - Commit semântico com configuração dinâmica, changelog automático e hook integrado
+#
+# DATA: 25/07/2025 - Versao 2.0.1
+# -------------------------------------------------------------------------------
+# Autor: Luiz Gustavo <luizg.devlx@gmail.com>
+# -------------------------------------------------------------------------------
+# Controle de Versão:
+##  - Consultar changelog.md do projeto
+################################################################################
+
+set -e
+
+CONFIG_FILE="./config/comitar.json"
+CHANGELOG_FILE=""
+INSTALL_DIR="$HOME/.local/bin"
+
+readonly APP_VERSION="2.0.1"
+readonly APP_DATE="25/07/2025"
+readonly SCRIPT_NAME="$(basename "$0")"
+readonly WORK_DIR="$(pwd)"
+readonly COMITAR_INSTALL_ROOT="$HOME/.comitar"
+readonly COMMIT_HOOK_SCRIPT="$COMITAR_INSTALL_ROOT/hooks/commit-check"
+readonly TOOLS_DIR="$COMITAR_INSTALL_ROOT/tools"
+readonly CHANGELOG_SCRIPT="$TOOLS_DIR/changelog.sh"
+readonly UNINSTALL_SCRIPT="$TOOLS_DIR/uninstall.sh"
+readonly UPGRADE_SCRIPT="$TOOLS_DIR/upgrade.sh"
+
+check_git_repo_silent() {
+  git rev-parse --is-inside-work-tree &>/dev/null
+}
+
+
+test_colors() {
+  local use_colors_config=$(jq -r '.use_colors' "$CONFIG_FILE")
+  local use_blinks_config=$(jq -r '.use_blinks' "$CONFIG_FILE")
+  if [ "$(tput colors 2>/dev/null)" -ge 8 ] && [[ "$use_colors_config" == "true" ]] ; then
+    RED="\e[31m"
+    GREEN="\e[32m"
+    YELLOW="\e[33m"
+    BLUE="\e[34m"
+    MAGENTA="\e[35m"
+    CYAN="\e[36m"
+    GRAY="\e[37m"
+    BOLD="\e[1m"
+    NC="\e[0m"   # no_color
+  else
+    USE_COLORS=0
+    RED=""
+    GREEN=""
+    YELLOW=""
+    BLUE=""
+    MAGENTA=""
+    CYAN=""
+    GRAY=""
+    BOLD=""
+    NC=""
+  fi
+  if [ "$(tput colors 2>/dev/null)" -ge 8 ] && [[ "$use_blinks_config" == "true" ]] ; then
+    BLINK="\e[5m"
+  else
+    BLINK=""
+  fi
+}
+test_colors
+
+show_version() {
+    printf "Versão: %s - %s\n" "$APP_VERSION" "$APP_DATE"
+}
+
+show_help() {
+    printf "${BLUE}${BOLD} %s${NC} - Commits padronizados com Conventional Commits + Hook\n\n" "$SCRIPT_NAME"
+    printf "USO:\n"
+    printf "  %s [opções]\n\n" "$SCRIPT_NAME"
+    printf "OPÇÕES:\n"
+    printf "  --install-hook     Instala o hook 'commit-msg' no repositório atual\n"
+    printf "  --commit           Abre menu para gerar commit semântico com emoji\n"
+    printf "  --changelog        Gera o changelog do projeto\n"
+    printf "  --upgrade          Atualiza o comitar para a versão mais recente\n"
+    printf "  --uninstall        Desinstala o comitar\n"
+    printf "  --help    | -h     Exibe esta ajuda\n"
+    printf "  --version | -V     Exibe a versão do utilitário\n"
+    printf "  --config  | -c     Abre menu interativo de configurações\n"
+    printf "  --undo             Desfaz o último commit localmente ou reverte se já enviado\n"
+
+}
+
+confirm_default_yes() {
+  local prompt="$1"
+  read -rp "$prompt (S/n): " resp
+  [[ -z "$resp" || "$resp" =~ ^[sS]$ ]]
+}
+
+check_dependencies() {
+  if ! command -v jq >/dev/null 2>&1 || ! command -v git >/dev/null 2>&1; then
+    echo -e "${RED}❌ Requer o utilitário 'jq' e 'git'. Instale com: sudo apt install jq git${NC}"
+    exit 1
+  fi
+}
+
+load_config() {
+  local project_config_file="./comitar.json"
+  local global_config_source="$COMITAR_INSTALL_ROOT/config/comitar.json"
+
+  if [[ -f "$project_config_file" ]]; then
+    CONFIG_FILE="$project_config_file"
+  elif check_git_repo_silent; then
+    local git_root=$(git rev-parse --show-toplevel)
+    project_config_file="$git_root/config/comitar.json"
+
+    if [[ ! -f "$project_config_file" ]]; then
+      echo -e "${YELLOW}⚠ Arquivo de configuração local '$project_config_file' não encontrado. Copiando do padrão...${NC}"
+      mkdir -p "$git_root/config"
+      cp "$global_config_source" "$project_config_file"
+      echo -e "${GREEN}✔ Arquivo de configuração copiado para '$project_config_file'.${NC}"
+      if ! grep -q "config/comitar.json" "$git_root/.gitignore" 2>/dev/null; then
+        echo -e "\n# Comitar config file\nconfig/comitar.json" >> "$git_root/.gitignore"
+        echo -e "${GREEN}✔ 'config/comitar.json' adicionado ao .gitignore.${NC}"
+      fi
+    fi
+    CONFIG_FILE="$project_config_file"
+  else
+    echo -e "${RED}❌ Arquivo de configuração '$project_config_file' não encontrado e não é um repositório Git para copiar o padrão.${NC}"
+    exit 1
+  fi
+  CHANGELOG_FILE=$(jq -r '.changelog_path' "$CONFIG_FILE")
+}
+
+check_git_repo() {
+  git rev-parse --is-inside-work-tree &>/dev/null || {
+    printf "${RED}❌ Esse diretório não é um repositório Git.${NC}\n"
+    exit 1
+  }
+}
+
+install_hook() {
+  check_git_repo
+  local hook_path=".git/hooks/commit-msg"
+  if [[ ! -f "$COMMIT_HOOK_SCRIPT" ]]; then
+      printf "${RED}❌ Arquivo de validação não encontrado:${NC} $COMMIT_HOOK_SCRIPT\n"
+      printf "Crie o script 'commit-check' e salve em ~/.local/bin/\n"
+      exit 1
+  fi
+
+  if [[ ! -f "$hook_path" ]]; then
+      cp "$COMMIT_HOOK_SCRIPT" "$hook_path"
+      chmod +x "$hook_path"
+      printf "${GREEN}✔ Hook instalado com sucesso:${NC} .git/hooks/commit-msg\n"
+  fi
+}
+
+check_and_update_version() {
+  local version_control=$(jq -r '.version_control // false' "$CONFIG_FILE")
+  local control_file=$(jq -r '.control_file // "pubspec.yaml"' "$CONFIG_FILE")
+  local var_name=$(jq -r '.var_name // "version"' "$CONFIG_FILE")
+
+  [[ "$version_control" != "true" ]] && return
+
+  if [[ ! -f "$control_file" ]]; then
+    echo -e "${RED}❌ Arquivo de versão não encontrado: $control_file${NC}"
+    return
+  fi
+
+  current_version=$(grep -E "^$var_name:" "$control_file" | awk '{print $2}')
+
+  if [[ -z "$current_version" ]]; then
+    echo -e "${RED}❌ Variável de versão '$var_name' não encontrada em $control_file${NC}"
+    return
+  fi
+
+  echo -e "${CYAN}Versão atual em $control_file: $current_version${NC}"
+  read -rp "Deseja alterar a versão antes do commit? (s/n): " change_version
+  if [[ -z "$change_version" || "$change_version" =~ ^[sS]$ ]]; then
+    major=$(echo "$current_version" | cut -d. -f1)
+    minor=$(echo "$current_version" | cut -d. -f2)
+    patch=$(echo "$current_version" | cut -d. -f3 | cut -d+ -f1)
+    build=$(echo "$current_version" | cut -d+ -f2)
+
+    echo -e "${BOLD}Escolha o tipo de alteração:${NC}"
+    echo "1. feat: Novo recurso (minor +1)"
+    echo "2. fix: Correção de bug (patch +1)"
+    echo "3. refactor: Refatoração (patch +1)"
+    echo "4. rebuild: Apenas rebuild (build +1)"
+    echo "5. ajuste manual"
+    echo "6. manter versão atual: $current_version"
+    echo "0. cancelar"
+    read -rp "Qual a alteração deseja: " choose_change
+
+    case "$choose_change" in
+      1) minor=$((minor + 1)); patch=0; build=1 ;;
+      2|3) patch=$((patch + 1)); build=1 ;;
+      4) build=$((build + 1)) ;;
+      5)
+        read -rp "Digite a nova versão completa (ex: 1.5.3+2): " man_new_version
+        if [[ "$man_new_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+\+[0-9]+$ ]]; then
+          new_version="$man_new_version"
+        else
+          echo -e "${RED}❌ Formato inválido.${NC}"
+          return
+        fi
+        ;;
+      6) new_version="$current_version" ;;
+      0) echo -e "${YELLOW}⚠️ Operação cancelada.${NC}"; return ;;
+      *) echo -e "${RED}❌ Escolha inválida.${NC}"; return ;;
+    esac
+
+    [[ -z "$new_version" ]] && new_version="${major}.${minor}.${patch}+${build}"
+    sed -i "s/^$var_name:.*/$var_name: ${new_version}/" "$control_file"
+    echo -e "${GREEN}✔ Versão atualizada para: $new_version${NC}"
+  fi
+}
+
+
+show_default_commit_types() {
+  echo -e "${BLUE}Tipos de commit padrão:${NC}"
+  echo " 0. cancelar:  ❌"
+  mapfile -t default_options < <(jq -c '.default_types[]?' "$CONFIG_FILE")
+  for i in "${!default_options[@]}"; do
+    item="${default_options[$i]}"
+    type=$(jq -r '.type' <<< "$item")
+    emoji=$(jq -r '.emoji' <<< "$item")
+    label=$(jq -r '.label' <<< "$item")
+    printf "%2d. %-10s %s %s\n" "$((i+1))" "$type:" "$emoji" "$label"
+  done
+  echo -e "${CYAN}${BLINK}99.${NC} Mostrar tipos personalizados ⏬"
+}
+
+show_commit_menu() {
+  echo -e "${BLUE}${BOLD}Selecione o tipo de commit:${NC}"
+  echo
+  show_default_commit_types
+  echo
+  read -rp "Selecione o tipo: " type_num
+  case $type_num in
+    0 | [qQ] | [sS])
+      echo -e "${YELLOW}${BLINK} ⚠️ COMMIT Cancelado pelo usuário.${NC}"
+      exit 0
+      ;;
+    99)
+      echo -e "\n${BLUE}Tipos adicionais definidos em comitar.config:${NC}"
+      mapfile -t options < <(jq -c '.custom_types[]?' "$CONFIG_FILE")
+      for i in "${!options[@]}"; do
+        item="${options[$i]}"
+        type=$(jq -r '.type' <<< "$item")
+        emoji=$(jq -r '.emoji' <<< "$item")
+        label=$(jq -r '.label' <<< "$item")
+        printf "%2d. %-10s %s %s\n" "$((i+1+${#default_options[@]}))" "$type:" "$emoji" "$label"
+      done
+      echo
+      read -rp "Digite o número do tipo adicional: " extra_type_num
+      case "$extra_type_num" in
+        0 | [sS]| [qQ] | sair | SAIR)
+          echo -e "${YELLOW}${BLINK} ⚠️ Commit cancelado pelo usuário.${NC}"
+          exit 0
+          ;;
+        [vV] | voltar)
+          echo -e "${CYAN}↩️  Retornando ao menu principal...${NC}"
+          show_commit_menu
+          return
+          ;;
+      esac
+      offset=$((extra_type_num - ${#default_options[@]} - 1))
+      if [[ "$extra_type_num" =~ ^[0-9]+$ ]] && (( offset >= 0 && offset < ${#options[@]} )); then
+        selected="${options[$offset]}"
+      else
+        echo -e "${RED}${BLINK}❌ Tipo inválido.${NC}"
+        exit 1
+      fi
+      ;;
+    *)
+      if [[ "$type_num" =~ ^[0-9]+$ ]] && (( type_num > 0 && type_num <= ${#default_options[@]} )); then
+        selected="${default_options[$((type_num-1))]}"
+      else
+        echo -e "${RED}${BLINK}❌ Tipo inválido.${NC}"
+        exit 1
+      fi
+    ;;
+  esac
+  tipo=$(jq -r '.type' <<< "$selected")
+  emoji=$(jq -r '.emoji' <<< "$selected")
+  label=$(jq -r '.label' <<< "$selected")
+}
+
+
+get_commit_message() {
+  local use_scope_config=$(jq -r '.use_scope' "$CONFIG_FILE")
+  local scope=""
+
+  while true; do
+    echo -e " ↪️ Tipo selecionado: $tipo $emoji"
+    if [[ "$use_scope_config" == "true" ]]; then
+      read -rp "   ✏️  Digite o escopo do commit (opcional, ex: auth, ui): " scope
+    fi
+    read -rp "   ✏️  Digite a mensagem do commit: " mensagem
+    case "$mensagem" in
+      [vV] | voltar | VOLTAR)
+        echo -e "${YELLOW}↩️  Retornando ao menu de seleção de tipo...${NC}"
+        show_commit_menu
+        mensagem=""
+        get_commit_message
+        return
+        ;;
+      [sS] | sair | SAIR)
+        echo -e "${YELLOW}${BLINK}⚠️ Commit cancelado pelo usuário.${NC}"
+        exit 0
+        ;;
+      *)
+        if [[ -n "$mensagem" ]]; then
+          break
+        else
+          echo -e "${RED}⚠️ A mensagem não pode estar vazia.${NC}"
+        fi
+        ;;
+    esac
+  done
+  # Armazena o escopo para uso posterior
+  COMMIT_SCOPE="$scope"
+}
+
+generate_commit() {
+  local use_emojis_config=$(jq -r '.use_emojis' "$CONFIG_FILE")
+  local use_scope_config=$(jq -r '.use_scope' "$CONFIG_FILE")
+  local commit_prefix=""
+  local commit_scope_formatted=""
+
+  if [[ "$use_emojis_config" == "true" ]]; then
+    commit_prefix=":$emoji: "
+  fi
+
+  if [[ "$use_scope_config" == "true" ]] && [[ -n "$COMMIT_SCOPE" ]]; then
+    commit_scope_formatted="($COMMIT_SCOPE)"
+  fi
+
+  commit_final="${commit_prefix}${tipo}${commit_scope_formatted}: ${mensagem}"
+  echo -e "${BLUE}Commit final:${NC} $commit_final"
+
+  git add -A
+  if git commit -m "$commit_final"; then
+    echo -e "${GREEN}✔ Commit realizado com sucesso.${NC}"
+    generate_changelog
+    ask_push
+  else
+    echo -e "${RED}❌ Falha ao realizar commit.${NC}"
+  fi
+}
+
+generate_changelog() {
+  if jq -e '.generate_changelog' "$CONFIG_FILE" | grep -q true; then
+    echo "- :$emoji: $tipo: $mensagem ($(date +'%Y-%m-%d'))" >> "$CHANGELOG_FILE"
+    echo -e "${GREEN}✔ Changelog atualizado em $CHANGELOG_FILE${NC}"
+  fi
+}
+
+send_tags_push() {
+  read -rp "🏷️ Deseja enviar as tags? (s/n): " confirm_send
+  if [[ -z "$confirm_send" || "$confirm_send" =~ ^[sS]$ ]]; then
+    git push --tags && printf "${VERDE}✔ Tags enviadas com sucesso.${NC}\n" || printf "${VERMELHO}❌ Falha ao enviar tags.${NC}\n"
+  fi
+}
+
+ask_tags() {
+  read -rp "🏷️ Deseja criar uma tag agora? (s/n): " confirm_tag
+  if [[ -z "$confirm_tag" || "$confirm_tag" =~ ^[sS]$ ]]; then
+    send_tags=true
+    read -rp "Digite o nome da tag desejada: " use_tag
+    git tag "$use_tag" && printf "${GREEN}✔ Tag '$use_tag' criada.\n${NC}" || printf "${RED}❌ Falha ao criar tag.\n${NC}"
+  fi
+
+  if $send_tags; then
+    send_tags_push
+  fi
+}
+
+ask_push() {
+  read -rp "⤴️ Deseja fazer push agora? (s/n): " confirm
+  if [[ -z "$confirm" || "$confirm" =~ ^[sS]$ ]]; then
+    branch_current=$(git branch --show-current)
+    if git rev-parse --abbrev-ref --symbolic-full-name @{u} >/dev/null 2>&1; then
+      git push && echo -e "${GREEN}✔ Push realizado com sucesso.${NC}"
+    else
+      git push -u origin "$branch_current" && echo -e "${GREEN}✔ Push realizado com sucesso.${NC}"
+    fi
+  else
+    echo -e "${YELLOW}⚠ Push não realizado. Execute manualmente se desejar.${NC}"
+  fi
+}
+
+
+
+configure_comitar() {
+  echo -e "${BLUE}${BOLD}Configuração do Comitar${NC}"
+  echo ""
+  load_config
+
+  # Configurar uso de cores
+  current_colors=$(jq -r '.use_colors' "$CONFIG_FILE")
+  read -rp "Usar cores nas mensagens? (s/n) [atual: $([[ "$current_colors" == "true" ]] && echo "sim" || echo "não")]: " choice
+  if [[ -z "$choice" || "$choice" =~ ^[sS]$ ]]; then
+    jq '.use_colors = true' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+  elif [[ "$choice" =~ ^[nN]$ ]]; then
+    jq '.use_colors = false' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+  fi
+
+  # Configurar uso de efeito pisca
+  current_blinks=$(jq -r '.use_blinks' "$CONFIG_FILE")
+  read -rp "Usar efeito pisca nas mensagens? (s/n) [atual: $([[ "$current_blinks" == "true" ]] && echo "sim" || echo "não")]: " choice
+  if [[ -z "$choice" || "$choice" =~ ^[sS]$ ]]; then
+    jq '.use_blinks = true' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+  elif [[ -z "$choice" || "$choice" =~ ^[nN]$ ]]; then
+    jq '.use_blinks = false' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+  fi
+
+  # Configurar uso de emojis
+  current_emojis=$(jq -r '.use_emojis' "$CONFIG_FILE")
+  read -rp "Usar emojis nos commits? (s/n) [atual: $([[ "$current_emojis" == "true" ]] && echo "sim" || echo "não")]: " choice
+  if [[ -z "$choice" || "$choice" =~ ^[sS]$ ]]; then
+    jq '.use_emojis = true' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+  elif [[ "$choice" =~ ^[nN]$ ]]; then
+    jq '.use_emojis = false' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+  fi
+
+  # Configurar uso de escopo
+  current_scope=$(jq -r '.use_scope' "$CONFIG_FILE")
+  read -rp "Usar escopo nos commits (ex: feat(auth):)? (s/n) [atual: $([[ "$current_scope" == "true" ]] && echo "sim" || echo "não")]: " choice
+  if [[ -z "$choice" || "$choice" =~ ^[sS]$ ]]; then
+    jq '.use_scope = true' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+  elif [[ "$choice" =~ ^[nN]$ ]]; then
+    jq '.use_scope = false' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+  fi
+
+  # Configurar controle de versão automático
+  current_control_version=$(jq -r '.version_control // false' "$CONFIG_FILE")
+  read -rp "Controlar versão automaticamente? (s/n) [atual: $([[ "$current_control_version" == "true" ]] && echo "sim" || echo "não")]: " choice
+  if [[ -z "$choice" || "$choice" =~ ^[sS]$ ]]; then
+    jq '.version_control = true' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+
+    # Se sim, pergunta o nome do arquivo
+    current_file=$(jq -r '.control_file // "your.file"' "$CONFIG_FILE")
+    read -rp "Arquivo que contém a versão? [atual: $current_file]: " input_file
+    [[ -n "$input_file" ]] && jq --arg file "$input_file" '.control_file = $file' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+
+    # Nome da variável
+    current_var=$(jq -r '.var_name // "version"' "$CONFIG_FILE")
+    read -rp "Nome da variável de versão? [atual: $current_var]: " input_var
+    [[ -n "$input_var" ]] && jq --arg var "$input_var" '.var_name = $var' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+
+    # Flag extra: controlar build separadamente?
+    current_build=$(jq -r '.version_build // false' "$CONFIG_FILE")
+    read -rp "Controlar número de build separadamente (ex: +1)? (s/n) [atual: $([[ "$current_build" == "true" ]] && echo "sim" || echo "não")]: " input_build
+    if [[ -z "$choice" || "$input_build" =~ ^[sS]$ ]]; then
+      jq '.version_build = true' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+    elif [[ "$input_build" =~ ^[nN]$ ]]; then
+      jq '.version_build = false' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+    fi
+
+  elif [[ "$choice" =~ ^[nN]$ ]]; then
+    jq '.version_control = false' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+  fi
+
+  echo -e "${GREEN}✔ Configuração atualizada com sucesso!${NC}"
+}
+
+undo_last_commit() {
+  check_git_repo
+
+  local last_commit_hash=$(git rev-parse HEAD)
+  local last_commit_msg=$(git log -1 --pretty=format:"%s")
+
+  echo -e "${YELLOW}⚠ Último commit:${NC} $last_commit_msg"
+
+  if git status | grep -q "Your branch is ahead of"; then
+    echo -e "${BLUE}Commit ainda não enviado para o remoto.${NC}"
+    read -rp "Deseja desfazer o último commit (manter arquivos)? (s/n): " confirm
+    if [[ -z "$confirm" || "$confirm" =~ ^[sS]$ ]]; then
+      git reset --soft HEAD~1
+      echo -e "${GREEN}✔ Commit desfeito localmente (arquivos mantidos no stage).${NC}"
+    fi
+  else
+    echo -e "${RED}Commit já foi enviado para o remoto.${NC}"
+    read -rp "Deseja reverter com 'git revert'? (s/n): " confirm
+    if [[ -z "$confirm" || "$confirm" =~ ^[sS]$ ]]; then
+      git revert "$last_commit_hash"
+      echo -e "${GREEN}✔ Commit revertido com sucesso.${NC}"
+    fi
+  fi
+
+  # Verifica se existe uma tag associada ao commit
+  tag=$(git tag --contains "$last_commit_hash")
+  if [[ -n "$tag" ]]; then
+    echo -e "${YELLOW}🏷️ Tag associada encontrada: ${tag}${NC}"
+    read -rp "Deseja apagar essa tag local e remotamente? (s/n): " delete_tag
+    if [[ -z "$delete_tag" || "$delete_tag" =~ ^[sS]$ ]]; then
+      git tag -d "$tag"
+      git push origin ":refs/tags/$tag"
+      echo -e "${GREEN}✔ Tag removida local e remotamente.${NC}"
+    fi
+  fi
+}
+
+
+main() {
+  case "${1:-}" in
+    --install-hook) install_hook ;;
+    --help | -h) show_help ;;
+    --version | -V) show_version ;;
+    --config | -c) configure_comitar ;;
+    --undo) undo_last_commit ;;
+    --changelog) "$CHANGELOG_SCRIPT" "${@:2}" ;;
+    --uninstall) "$UNINSTALL_SCRIPT" ;;
+    --upgrade) "$UPGRADE_SCRIPT" ;;
+    --commit | "")
+      check_dependencies
+      load_config
+      install_hook
+      show_commit_menu
+      get_commit_message
+      generate_commit
+      ;;
+    *)
+      printf "\n${RED}OPÇÃO '$1' DESCONHECIDA${NC}\n\n"
+      printf "${YELLOW} ℹ Nenhuma opção válida informada.${NC}\n\n"
+      show_help
+      ;;
+  esac
+}
+
+main "$@"
