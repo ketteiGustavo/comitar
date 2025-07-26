@@ -100,23 +100,22 @@ check_dependencies() {
 }
 
 load_config() {
-  local project_config_file="./comitar.json"
+  local project_config_file="$WORK_DIR/.comitar.json"
   local global_config_source="$COMITAR_INSTALL_ROOT/config/comitar.json"
 
   if [[ -f "$project_config_file" ]]; then
     CONFIG_FILE="$project_config_file"
   elif check_git_repo_silent; then
     local git_root=$(git rev-parse --show-toplevel)
-    project_config_file="$git_root/config/comitar.json"
+    project_config_file="$git_root/.comitar.json"
 
     if [[ ! -f "$project_config_file" ]]; then
       echo -e "${YELLOW}⚠ Arquivo de configuração local '$project_config_file' não encontrado. Copiando do padrão...${NC}"
-      mkdir -p "$git_root/config"
       cp "$global_config_source" "$project_config_file"
       echo -e "${GREEN}✔ Arquivo de configuração copiado para '$project_config_file'.${NC}"
-      if ! grep -q "config/comitar.json" "$git_root/.gitignore" 2>/dev/null; then
+      if ! grep -q ".comitar.json" "$git_root/.gitignore" 2>/dev/null; then
         echo -e "\n# Comitar config file\nconfig/comitar.json" >> "$git_root/.gitignore"
-        echo -e "${GREEN}✔ 'config/comitar.json' adicionado ao .gitignore.${NC}"
+        echo -e "${GREEN}✔ '.comitar.json' adicionado ao .gitignore.${NC}"
       fi
     fi
     CONFIG_FILE="$project_config_file"
