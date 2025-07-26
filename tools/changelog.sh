@@ -86,10 +86,14 @@ declare -A sections
 declare -A breakings
 declare -A reverts
 
+#regex='^(:[^:]+:\s*)?([a-z]+)(\(([^)]*)\))?:[[:space:]]+(.+)'
+regex='^(:[^:]+:[[:space:]]*)*([a-z]+)(\(([^)]*)\))?:[[:space:]]+(.+)'
+
 # Processa cada commit
 while IFS='|' read -r hash subject body; do
-  if [[ "$subject" =~ ^([a-z]+)(\(([^)]+)\))?(!)?:\ (.+) ]]; then
-    type="${BASH_REMATCH[1]}"
+  #regex='^([a-z]+)(\(([^)]*)\))?:[[:space:]]+(.+)'
+  if [[ "$subject" =~ $regex ]]; then
+    type="${BASH_REMATCH[2]}"
     scope="${BASH_REMATCH[3]}"
     msg="${BASH_REMATCH[5]}"
   else
@@ -105,7 +109,8 @@ while IFS='|' read -r hash subject body; do
 
   # Detecta revert
   if [[ "$subject" =~ ^Revert ]]; then
-    if [[ "$body" =~ [Rr]everts commit ([0-9a-f]{7,40}) ]]; then
+    revert_regex='[Rr]everts[[:space:]]commit[[:space:]]([0-9a-f]{7,40})'
+    if [[ "$body" =~ $revert_regex ]]; then
       reverts["${BASH_REMATCH[1]}"]=1
       continue
     fi
