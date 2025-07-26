@@ -338,11 +338,11 @@ generate_commit() {
 
   commit_final="${commit_prefix}${tipo}${commit_scope_formatted}: ${mensagem}"
   echo -e "${BLUE}Commit final:${NC} $commit_final"
+  generate_changelog
 
   git add -A
   if git commit -m "$commit_final"; then
     echo -e "${GREEN}✔ Commit realizado com sucesso.${NC}"
-    generate_changelog
     ask_push
   else
     echo -e "${RED}❌ Falha ao realizar commit.${NC}"

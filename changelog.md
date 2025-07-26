@@ -1,2 +1,3 @@
 - :🐛: fix: corrigido bug no changelog.sh (2025-07-26)
 - :📚: docs: changelog iniciado (2025-07-26)
+- :🐛: fix: apontando o changelog de forma correta + data em formato BR (2025-07-26)
