@@ -351,7 +351,7 @@ generate_commit() {
 
 generate_changelog() {
   if jq -e '.generate_changelog' "$CONFIG_FILE" | grep -q true; then
-    echo "- :$emoji: $tipo: $mensagem ($(date +'%Y-%m-%d'))" >> "$CHANGELOG_FILE"
+    echo "- :$emoji: $tipo: $mensagem ($(date +'%d-%m-%Y %H:%M'))" >> "$CHANGELOG_FILE"
     echo -e "${GREEN}✔ Changelog atualizado em $CHANGELOG_FILE${NC}"
   fi
 }
