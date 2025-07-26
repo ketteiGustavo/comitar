@@ -131,8 +131,9 @@ create_directories() {
 download_files() {
   $QUIET || echo -e "${GREEN}⬇ Baixando arquivos...${NC}"
 
-  curl -fsSL "$REPO_RAW/bin/comitar" -o "$COMITAR_DIR/bin"
-  chmod +x "$COMITAR_DIR/bin"
+  mkdir -p "$COMITAR_DIR/bin"
+  curl -fsSL "$REPO_RAW/bin/comitar" -o "$COMITAR_DIR/bin/comitar"
+  chmod +x "$COMITAR_DIR/bin/comitar"
 
   curl -fsSL "$REPO_RAW/config/comitar.json" -o "$CONFIG_DIR/comitar.json"
   curl -fsSL "$REPO_RAW/hooks/commit-check" -o "$HOOKS_DIR/commit-check"
