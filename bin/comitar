@@ -156,31 +156,51 @@ install_hook() {
 }
 
 check_and_update_version() {
-  local version_control=$(jq -r '.version_control // false' "$CONFIG_FILE")
-  local control_file=$(jq -r '.control_file // "pubspec.yaml"' "$CONFIG_FILE")
-  local var_name=$(jq -r '.var_name // "version"' "$CONFIG_FILE")
-
+  local version_control
+  version_control=$(jq -r '.version_control // false' "$CONFIG_FILE")
   [[ "$version_control" != "true" ]] && return
+
+  local control_file
+  control_file=$(jq -r '.control_file // "VERSION"' "$CONFIG_FILE")
+  local var_name
+  var_name=$(jq -r '.var_name // ""' "$CONFIG_FILE")
 
   if [[ ! -f "$control_file" ]]; then
     echo -e "${RED}❌ Arquivo de versão não encontrado: $control_file${NC}"
     return
   fi
 
-  current_version=$(grep -E "^$var_name:" "$control_file" | awk '{print $2}')
+  local current_version
+  if [[ -n "$var_name" ]]; then
+    # Key-value file logic (e.g., version: 1.2.3)
+    current_version=$(grep -E "^$var_name:" "$control_file" | awk '{print $2}')
+  else
+    # Plain text version file logic (e.g., 1.2.3)
+    current_version=$(cat "$control_file" | tr -d '[:space:]')
+  fi
 
   if [[ -z "$current_version" ]]; then
-    echo -e "${RED}❌ Variável de versão '$var_name' não encontrada em $control_file${NC}"
+    echo -e "${RED}❌ Não foi possível ler a versão atual do arquivo '$control_file'${NC}"
     return
   fi
 
   echo -e "${CYAN}Versão atual em $control_file: $current_version${NC}"
   read -rp "Deseja alterar a versão antes do commit? (s/n): " change_version
   if [[ -z "$change_version" || "$change_version" =~ ^[sS]$ ]]; then
-    major=$(echo "$current_version" | cut -d. -f1)
-    minor=$(echo "$current_version" | cut -d. -f2)
-    patch=$(echo "$current_version" | cut -d. -f3 | cut -d+ -f1)
-    build=$(echo "$current_version" | cut -d+ -f2)
+    local version_core
+    local build
+    if [[ "$current_version" == *"+"* ]]; then
+        version_core=$(echo "$current_version" | cut -d+ -f1)
+        build=$(echo "$current_version" | cut -d+ -f2)
+    else
+        version_core="$current_version"
+        build=0
+    fi
+
+    local major minor patch
+    major=$(echo "$version_core" | cut -d. -f1)
+    minor=$(echo "$version_core" | cut -d. -f2)
+    patch=$(echo "$version_core" | cut -d. -f3)
 
     echo -e "${BOLD}Escolha o tipo de alteração:${NC}"
     echo "1. feat: Novo recurso (minor +1)"
@@ -192,13 +212,15 @@ check_and_update_version() {
     echo "0. cancelar"
     read -rp "Qual a alteração deseja: " choose_change
 
+    local new_version=""
     case "$choose_change" in
       1) minor=$((minor + 1)); patch=0; build=1 ;;
       2|3) patch=$((patch + 1)); build=1 ;;
       4) build=$((build + 1)) ;;
       5)
-        read -rp "Digite a nova versão completa (ex: 1.5.3+2): " man_new_version
-        if [[ "$man_new_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+\+[0-9]+$ ]]; then
+        read -rp "Digite a nova versão completa (ex: 1.5.3 ou 1.5.3+2): " man_new_version
+        # Basic validation
+        if [[ "$man_new_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(\+[0-9]+)?$ ]]; then
           new_version="$man_new_version"
         else
           echo -e "${RED}❌ Formato inválido.${NC}"
@@ -210,8 +232,23 @@ check_and_update_version() {
       *) echo -e "${RED}❌ Escolha inválida.${NC}"; return ;;
     esac
 
-    [[ -z "$new_version" ]] && new_version="${major}.${minor}.${patch}+${build}"
-    sed -i "s/^$var_name:.*/$var_name: ${new_version}/" "$control_file"
+    # Reconstruct the version string if not set manually
+    if [[ -z "$new_version" ]]; then
+        local version_build_config
+        version_build_config=$(jq -r '.version_build // false' "$CONFIG_FILE")
+        if [[ "$version_build_config" == "true" ]]; then
+            new_version="${major}.${minor}.${patch}+${build}"
+        else
+            new_version="${major}.${minor}.${patch}"
+        fi
+    fi
+
+    # Write the new version back to the file
+    if [[ -n "$var_name" ]]; then
+        sed -i "s/^$var_name:.*/$var_name: ${new_version}/" "$control_file"
+    else
+        echo "$new_version" > "$control_file"
+    fi
     echo -e "${GREEN}✔ Versão atualizada para: $new_version${NC}"
   fi
 }
