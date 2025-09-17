@@ -144,14 +144,14 @@ Após a instalação, **reinicie seu terminal** ou execute `source ~/.bashrc` (o
 
 ## ✨ Funcionalidades
 
-✅ Interface interativa com menu de tipos de commit
-✅ Emojis automáticos baseados no tipo escolhido
-✅ Geração de changelog em `.changelog.md`
-✅ Hook Git opcional para validar commits (`--install-hook`)
-✅ Push automático com upstream inteligente
-✅ Configuração dinâmica via `comitar.json` (incluindo cores, emojis e escopo)
-✅ Autocomplete de argumentos no terminal
-✅ Scripts auxiliares para upgrade e desinstalação
+- ✅ Interface interativa com menu de tipos de commit
+- ✅ Emojis automáticos baseados no tipo escolhido
+- ✅ Geração de changelog em `.changelog.md`
+- ✅ Hook Git opcional para validar commits (`--install-hook`)
+- ✅ Push automático com upstream inteligente
+- ✅ Configuração dinâmica via `comitar.json` (incluindo cores, emojis e escopo)
+- ✅ Autocomplete de argumentos no terminal
+- ✅ Scripts auxiliares para upgrade e desinstalação
 
 ---
 
