@@ -13,3 +13,4 @@
 - :✨: feat: novo recurso para ler arquivo/variavel de controle de versão corretamente (por: Luiz Gustavo em 17-09-2025 11:02)
 - :📚: docs: organizado seção Funcionalidades (por: Luiz Gustavo em 17-09-2025 11:05)
 - :🐛: fix: bug em controle de versão corrigido (por: Luiz Gustavo em 17-09-2025 11:13)
+- :👌: style: exibindo mensagem de permissões no install.sh (por: Luiz Gustavo em 17-09-2025 11:14)

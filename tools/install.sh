@@ -154,6 +154,7 @@ set_permissions() {
     chmod +x "$COMITAR_DIR"/bin/comitar
     chmod +x "$COMITAR_DIR"/hooks/commit-check
     chmod +x "$COMITAR_DIR"/tools/comitar-autocomplete
+    $QUIET || echo -e "${BLUE}🔐 Permissões concedidas...${NC}"
 }
 
 install_man_page() {
