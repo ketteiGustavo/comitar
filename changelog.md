@@ -3,3 +3,4 @@
 - :🐛: fix: apontando o changelog de forma correta + data em formato BR (2025-07-26)
 - :🐛: fix: ajuste em generate_changelog (26-07-2025 20:37)
 - :🐛: fix: corrigido bug na ordem de atualização do changelog (26-07-2025 20:40)
+- :📚: docs: ajuste no README (17-09-2025 09:28)

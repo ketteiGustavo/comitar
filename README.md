@@ -2,9 +2,14 @@
 
 > 💬 Ferramenta em Shell Script para criar commits padronizados, com changelog automático, validação de mensagens e instalação simplificada via terminal.
 ---
-[![Mantido](https://img.shields.io/badge/Mantido%3F-sim-green.svg)](https://GitHub.com/Naereen/StrapDown.js/graphs/commit-activity)
+[![Maintained](https://img.shields.io/maintenance/yes/2025?style=flat-square&label=mantido)](https://github.com/ketteiGustavo/comitar)
 [![Maintainer !](https://img.shields.io/badge/mantenedor-luizgustavo-blue)](https://github.com/ketteiGustavo)
-[![PRs Welcome](https://img.shields.io/badge/PRs-bem_vindas-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
+[![License: GNU](https://img.shields.io/badge/GNU-yellow.svg)](./LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-bem_vindos-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
+[![Conventional Commits](https://img.shields.io/badge/commits-conventional-blue.svg?style=flat-square)](https://www.conventionalcommits.org/pt-br/v1.0.0/)
+[![Changelog](https://img.shields.io/badge/changelog-MD-blueviolet.svg?style=flat-square)](./changelog.md)
+[![Code of Conduct](https://img.shields.io/badge/code%20of%20conduct-v1.4-orange.svg?style=flat-square)](./CODE_OF_CONDUCT.md)
+[![Contributing](https://img.shields.io/badge/Contribuir-Guia-blue.svg?style=flat-square)](./CONTRIBUTING.md)
 
 ![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)
 ![Shell Script](https://img.shields.io/badge/shell_script-%23121011.svg?style=for-the-badge&logo=gnu-bash&logoColor=white)
@@ -40,19 +45,30 @@ Adotar essa **[convenção](https://www.conventionalcommits.org/pt-br)** ajuda v
 <details open="open">
 <summary>Ver mais</summary>
 
-- [Sobre](#-sobre-o-projeto)
-- [Tipos de Commit](#tipos-de-commit-)
-- [Requisitos](#-requisitos)
-- [Instruções](#-instalação-rápida)
-- [Funcionalidades](#-funcionalidades)
-- [Exemplos](#-exemplo-de-uso)
-- [Configurações](#️-configuração-local)
-- [Padrões](#-tipos-disponíveis)
-- [Contribua com esse projeto](#-contribuindo)
-- [Suporte](#-suporte)
-- [Licenças](#-licenças)
-- [Gitflow](#-gitflow)
-- [Contribuições](#-contribuições-e-contribuidores)
+- [🧠 Comitar – Commit Semântico Interativo com Emojis 📝](#-comitar--commit-semântico-interativo-com-emojis-)
+  - [📖 SOBRE O PROJETO](#-sobre-o-projeto)
+  - [🗂️ ÍNDICE](#️-índice)
+- [Tipos de Commit 🦄](#tipos-de-commit-)
+  - [📖 Requisitos](#-requisitos)
+  - [🚀 Instalação rápida](#-instalação-rápida)
+  - [✨ Funcionalidades](#-funcionalidades)
+  - [📋 Exemplo de uso](#-exemplo-de-uso)
+  - [🛠️ Configuração local](#️-configuração-local)
+    - [Opções de Configuração](#opções-de-configuração)
+  - [📦 Estrutura de commit semântico](#-estrutura-de-commit-semântico)
+    - [Exemplos:](#exemplos)
+  - [💈 Tipos disponíveis](#-tipos-disponíveis)
+  - [🧪 Exemplo visual](#-exemplo-visual)
+  - [💻 Execução do `Comitar`](#-execução-do-comitar)
+  - [🧩 Estrutura do projeto](#-estrutura-do-projeto)
+  - [🧪 Testes](#-testes)
+    - [Instalação do BATS](#instalação-do-bats)
+    - [Executando os testes](#executando-os-testes)
+  - [⚡ Autocomplete de argumentos](#-autocomplete-de-argumentos)
+  - [🧠 Contribuindo](#-contribuindo)
+  - [🆘 SUPORTE](#-suporte)
+  - [📄 Licença](#-licença)
+  - [🤝 CONTRIBUIÇÕES E CONTRIBUIDORES](#-contribuições-e-contribuidores)
 
 
 </details>
