@@ -9,13 +9,33 @@ set -e
 COMITAR_DIR="$HOME/.comitar"
 SHELL_RC=""
 
-# Cores
-RED="\e[31m"
-GREEN="\e[32m"
-YELLOW="\e[33m"
-CYAN="\e[36m"
-NC="\e[0m"
-BOLD="\e[1m"
+test_colors() {
+  if [ "$(tput colors 2>/dev/null)" -ge 8 ]; then
+    RED="\e[31m"
+    GREEN="\e[32m"
+    YELLOW="\e[33m"
+    BLUE="\e[34m"
+    MAGENTA="\e[35m"
+    CYAN="\e[36m"
+    GRAY="\e[37m"
+    BOLD="\e[1m"
+    BLINK="\e[5m"
+    NC="\e[0m"   # no_color
+  else
+    USE_COLORS=0
+    RED=""
+    GREEN=""
+    YELLOW=""
+    BLUE=""
+    MAGENTA=""
+    CYAN=""
+    GRAY=""
+    BOLD=""
+    BLINK=""
+    NC=""
+  fi
+}
+test_colors
 
 detect_shell() {
   if [[ $SHELL =~ bash ]]; then
@@ -37,15 +57,25 @@ if [[ ! -d "$COMITAR_DIR/.git" ]]; then
   exit 1
 fi
 
+set_permissions() {
+    $QUIET || echo -e "${BLUE}🔐 Configurando permissões dos scripts...${NC}"
+    # Torna todos os scripts .sh executáveis
+    find "$COMITAR_DIR" -type f -name "*.sh" -exec chmod +x {} +
+    # Torna executáveis os scripts que não têm extensão .sh
+    chmod +x "$COMITAR_DIR"/bin/comitar
+    chmod +x "$COMITAR_DIR"/hooks/commit-check
+    chmod +x "$COMITAR_DIR"/tools/comitar-autocomplete
+}
+
 echo "➡ Sincronizando com o repositório oficial..."
 (
   cd "$COMITAR_DIR"
   # Garante que o remote 'origin' está configurado corretamente
   git remote set-url origin https://github.com/ketteiGustavo/comitar.git &>/dev/null || git remote add origin https://github.com/ketteiGustavo/comitar.git &>/dev/null
   # Busca as últimas alterações do branch main
-  git fetch origin main
+  git fetch origin main &>/dev/null
   # Reseta o repositório local para ser um espelho exato do remoto, descartando alterações locais
-  git reset --hard origin/main
+  git reset --hard origin/main &>/dev/null
 )
 
 echo -e "\n${YELLOW}➡ Atualizando manual...${NC}"
@@ -61,6 +91,7 @@ else
 fi
 
 detect_shell
+set_permissions
 
 echo -e "\n${GREEN}${BOLD}✅ Atualização concluída com sucesso!${NC}"
 echo -e "${CYAN}🚀 Use ${BOLD}comitar news${NC} para ver as novidades."
