@@ -12,3 +12,4 @@
 - :🐛: fix: bug que fazia o upgrade tirar as permissões de execução (por: Luiz Gustavo em 17-09-2025 10:55)
 - :✨: feat: novo recurso para ler arquivo/variavel de controle de versão corretamente (por: Luiz Gustavo em 17-09-2025 11:02)
 - :📚: docs: organizado seção Funcionalidades (por: Luiz Gustavo em 17-09-2025 11:05)
+- :🐛: fix: bug em controle de versão corrigido (por: Luiz Gustavo em 17-09-2025 11:13)
