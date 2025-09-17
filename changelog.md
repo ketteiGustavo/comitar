@@ -6,3 +6,4 @@
 - :📚: docs: ajuste no README (17-09-2025 09:28)
 - :📚: docs: ajuste no README, links corretos (17-09-2025 09:31)
 - :✨: feat: opções de argumentos melhoradas (por: Luiz Gustavo em 17-09-2025 10:00)
+- :📚: docs: README atualizado, com utilização do git clone (por: Luiz Gustavo em 17-09-2025 10:24)

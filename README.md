@@ -50,7 +50,7 @@ Adotar essa **[convenção](https://www.conventionalcommits.org/pt-br)** ajuda v
   - [🗂️ ÍNDICE](#️-índice)
 - [Tipos de Commit 🦄](#tipos-de-commit-)
   - [📖 Requisitos](#-requisitos)
-  - [🚀 Instalação rápida](#-instalação-rápida)
+  - [🚀 Instalação Rápida](#-instalação-rápida)
   - [✨ Funcionalidades](#-funcionalidades)
   - [📋 Exemplo de uso](#-exemplo-de-uso)
   - [🛠️ Configuração local](#️-configuração-local)
@@ -66,6 +66,8 @@ Adotar essa **[convenção](https://www.conventionalcommits.org/pt-br)** ajuda v
     - [Executando os testes](#executando-os-testes)
   - [⚡ Autocomplete de argumentos](#-autocomplete-de-argumentos)
   - [🧠 Contribuindo](#-contribuindo)
+    - [Como Começar](#como-começar)
+    - [Reportando Bugs e Sugerindo Melhorias](#reportando-bugs-e-sugerindo-melhorias)
   - [🆘 SUPORTE](#-suporte)
   - [📄 Licença](#-licença)
   - [🤝 CONTRIBUIÇÕES E CONTRIBUIDORES](#-contribuições-e-contribuidores)
@@ -110,36 +112,33 @@ Os commits semânticos seguem uma estrutura que deixa claro qual foi a intençã
 
 ## 📖 Requisitos
 
-- Git
-- Bash ≥ 4
-- jq (`sudo apt install jq`)
-- curl ou wget
+O `comitar` é uma ferramenta de linha de comando e foi projetado para funcionar em ambientes baseados em Unix (Linux, macOS).
+
+**Dependências obrigatórias:**
+- **Git:** Essencial para a instalação (via `git clone`) e para o funcionamento do `comitar`.
+- **jq:** Usado para processar arquivos de configuração JSON.
+- **Bash:** Versão 4 ou superior.
+
+O script de instalação pode instalar o `git` e o `jq` para você em sistemas baseados em Debian, Red Hat ou Arch, usando a flag `--full`. Para o download do instalador, você precisará de `curl` ou `wget`.
 
 ---
 
-## 🚀 Instalação rápida
+## 🚀 Instalação Rápida
 
+O instalador agora clona o repositório oficial para `~/.comitar`, garantindo que as atualizações (`comitar --upgrade`) sejam mais rápidas e seguras.
+
+**Comando de Instalação:**
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/ketteiGustavo/comitar/main/tools/install.sh)
 ```
 
-Ou:
-
+**Instalação com dependências (Recomendado):**
+Se você não tem certeza se possui `git` e `jq` instalados, use a flag `--full` para que o instalador cuide disso para você:
 ```bash
-wget -qO- https://raw.githubusercontent.com/ketteiGustavo/comitar/main/tools/install.sh | bash
+bash <(curl -fsSL https://raw.githubusercontent.com/ketteiGustavo/comitar/main/tools/install.sh) -- --full
 ```
 
-Para instalar em um diretório diferente, use a flag `--install-dir`:
-
-```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/ketteiGustavo/comitar/main/tools/install.sh) -- --install-dir /usr/local/bin
-```
-
-Após a instalação, abra um novo terminal e basta rodar:
-
-```bash
-comitar
-```
+Após a instalação, **reinicie seu terminal** ou execute `source ~/.bashrc` (ou `~/.zshrc`) para que o comando `comitar` e o autocomplete estejam disponíveis.
 
 ---
 
@@ -331,9 +330,51 @@ source ~/.bashrc    # ou ~/.zshrc
 
 Contribuições são bem-vindas!
 
-Primeiramente, obrigado por reservar um tempo para contribuir! Contribuições são o que torna a comunidade de código aberto um lugar tão incrível para aprender, inspirar e criar. Quaisquer contribuições que você fizer beneficiarão a todos os outros e serão muito apreciadas.
+Contribuições são o que torna a comunidade de código aberto um lugar tão incrível para aprender, inspirar e criar. Quaisquer contribuições que você fizer beneficiarão a todos e serão muito apreciadas.
 
-Abra uma [issue](https://github.com/ketteiGustavo/comitar/issues) ou envie um pull request.
+Siga o [CONTRIBUINDO](CONTRIBUTING.md) desse projeto.
+
+### Como Começar
+
+1.  **Faça um Fork do Repositório**
+    Clique no botão "Fork" no canto superior direito desta página para criar uma cópia do repositório na sua própria conta do GitHub.
+
+2.  **Clone o Seu Fork**
+    Agora, clone o repositório que você acabou de "forkar" para a sua máquina local. Substitua `SEU-USUARIO` pelo seu nome de usuário do GitHub.
+    ```bash
+    git clone git@github.com:SEU-USUARIO/comitar.git
+    cd comitar
+    ```
+
+3.  **Crie uma Nova Branch**
+    Crie uma branch para trabalhar na sua nova funcionalidade ou correção.
+    ```bash
+    git checkout -b minha-incrivel-melhoria
+    ```
+
+4.  **Faça suas Alterações e Commits**
+    Faça as modificações desejadas no código. Use o próprio `comitar` para criar seus commits semânticos!
+    ```bash
+    comitar --commit
+    ```
+
+5.  **Envie suas Alterações (Push)**
+    Envie a sua branch para o seu fork no GitHub.
+    ```bash
+    git push origin minha-incrivel-melhoria
+    ```
+
+6.  **Abra um Pull Request (PR)**
+    Volte para a página do seu fork no GitHub. Você verá um botão para "Compare & pull request". Clique nele, descreva suas alterações e abra o PR. A equipe do projeto irá revisar suas mudanças.
+
+### Reportando Bugs e Sugerindo Melhorias
+
+Se você não quer editar o código, mas encontrou um problema ou tem uma ideia, pode nos ajudar abrindo uma **Issue**. Use um dos nossos templates para garantir que temos toda a informação necessária:
+- **[Reportar um Bug](https://github.com/ketteiGustavo/comitar/issues/new?assignees=&labels=&projects=&template=bug_report.md&title=)**
+- **[Sugerir uma Melhoria](https://github.com/ketteiGustavo/comitar/issues/new?assignees=&labels=&projects=&template=solicitar_recurso.md&title=)**
+
+Siga o [Código de Conduta](CODE_OF_CONDUCT.md) desse projeto.
+
 
 Tente criar relatórios de bugs que sejam:
 
@@ -341,9 +382,6 @@ Tente criar relatórios de bugs que sejam:
 - Específico. Inclua o máximo de detalhes possível: qual versão, qual ambiente, etc.
 - Único. Não duplique problemas abertos existentes.
 - Escopo para um único bug. Um bug por relatório.
-
-Siga o [Código de Conduta](documentos/CODIGO_DE_CONDUTA.md) desse projeto.
-
 
 ---
 
