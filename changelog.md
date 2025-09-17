@@ -14,3 +14,4 @@
 - :📚: docs: organizado seção Funcionalidades (por: Luiz Gustavo em 17-09-2025 11:05)
 - :🐛: fix: bug em controle de versão corrigido (por: Luiz Gustavo em 17-09-2025 11:13)
 - :👌: style: exibindo mensagem de permissões no install.sh (por: Luiz Gustavo em 17-09-2025 11:14)
+- :🐛: fix: resolvido bug, funcção que controlava a versão sendo chamada no fluxo do comitar (por: Luiz Gustavo em 17-09-2025 11:17)

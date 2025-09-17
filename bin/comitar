@@ -612,6 +612,7 @@ main() {
       install_hook
       show_commit_menu
       get_commit_message
+      check_and_update_version
       generate_commit
       ;;
     *)
