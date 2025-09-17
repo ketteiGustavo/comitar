@@ -83,6 +83,7 @@ show_help() {
     printf "  --changelog        Gera o changelog do projeto\n"
     printf "  --upgrade          Atualiza o comitar para a versão mais recente\n"
     printf "  --uninstall        Desinstala o comitar\n"
+    printf "  --news             Mostra as novidades do comitar\n"
     printf "  --help    | -h     Exibe esta ajuda\n"
     printf "  --version | -V     Exibe a versão do utilitário\n"
     printf "  --config  | -c     Abre menu interativo de configurações\n"
@@ -339,7 +340,7 @@ generate_commit() {
   commit_final="${commit_prefix}${tipo}${commit_scope_formatted}: ${mensagem}"
   echo -e "${BLUE}Commit final:${NC} $commit_final"
   generate_changelog
-  git add $CHANGELOG_FILE
+  git add "$CHANGELOG_FILE"
 
   git add -A
   if git commit -m "$commit_final"; then
@@ -393,7 +394,15 @@ ask_push() {
   fi
 }
 
-
+show_comitar_news() {
+  local comitar_changelog="$COMITAR_INSTALL_ROOT/changelog.md"
+  if [[ -f "$comitar_changelog" ]]; then
+    less "$comitar_changelog"
+  else
+    echo -e "${RED}❌ Changelog do Comitar não encontrado em $comitar_changelog${NC}"
+    exit 1
+  fi
+}
 
 configure_comitar() {
   echo -e "${BLUE}${BOLD}Configuração do Comitar${NC}"
@@ -513,9 +522,10 @@ main() {
     --version | -V) show_version ;;
     --config | -c) configure_comitar ;;
     --undo) undo_last_commit ;;
-    --changelog) "$CHANGELOG_SCRIPT" "${@:2}" ;;
+    changelog|--changelog) "$CHANGELOG_SCRIPT" "${@:2}" ;;
     --uninstall) "$UNINSTALL_SCRIPT" ;;
     --upgrade) "$UPGRADE_SCRIPT" ;;
+    news|--news) show_comitar_news ;;
     --commit | "")
       check_dependencies
       load_config

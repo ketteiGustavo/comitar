@@ -14,6 +14,7 @@ CONFIG_DIR="$COMITAR_DIR/config"
 HOOKS_DIR="$COMITAR_DIR/hooks"
 MAN_DIR="$COMITAR_DIR/man"
 TOOLS_DIR="$COMITAR_DIR/tools"
+SHELL_RC=""
 
 # Cores
 RED="\e[31m"
@@ -23,6 +24,19 @@ CYAN="\e[36m"
 NC="\e[0m"
 BOLD="\e[1m"
 BLINK="\e[5m"
+
+# Detecta shell atual para mensagem final
+detect_shell() {
+  if [[ $SHELL =~ bash ]]; then
+    SHELL_RC="$HOME/.bashrc"
+  elif [[ $SHELL =~ zsh ]]; then
+    SHELL_RC="$HOME/.zshrc"
+  elif [[ $SHELL =~ fish ]]; then
+    SHELL_RC="$HOME/.config/fish/config.fish"
+  else
+    SHELL_RC=""
+  fi
+}
 
 echo -e "${CYAN}${BOLD}🔄 Iniciando atualização do COMITAR...${NC}"
 
@@ -53,11 +67,13 @@ curl -fsSL "$REPO_RAW/man/comitar.1" -o "$MAN_DIR/comitar.1"
 
 # Copia manual para diretório global
 echo -e "${YELLOW}➡ Copiando manual para /usr/local/man/man1...${NC}"
+sudo mkdir -p /usr/local/man/man1
 if sudo cp "$MAN_DIR/comitar.1" /usr/local/man/man1/comitar.1 && sudo mandb /usr/local/man &>/dev/null; then
     echo -e "${GREEN}✔ Manual atualizado com sucesso${NC}"
 else
-    echo -e "${RED}⚠ Falha ao instalar o manual (talvez falte sudo ou o diretório não exista).${NC}"
+    echo -e "${RED}⚠ Falha ao instalar o manual.${NC}"
     echo -e "${YELLOW}💡 Tente executar manualmente:${NC}"
+    echo -e "${CYAN}   sudo mkdir -p /usr/local/man/man1 ${NC}"
     echo -e "${CYAN}   sudo cp $MAN_DIR/comitar.1 /usr/local/man/man1/ ${NC}"
     echo -e "${CYAN}   sudo mandb /usr/local/man ${NC}"
 fi
@@ -68,11 +84,18 @@ echo -e "${YELLOW}➡ Atualizando changelog...${NC}"
 curl -fsSL "$REPO_RAW/changelog.md" -o "$COMITAR_DIR/changelog.md"
 
 # Atualiza ferramentas auxiliares
-for script in upgrade.sh uninstall.sh changelog.sh; do
+for script in upgrade.sh uninstall.sh changelog.sh comitar-autocomplete; do
   echo -e "${YELLOW}➡ Atualizando tools/$script...${NC}"
   curl -fsSL "$REPO_RAW/tools/$script" -o "$TOOLS_DIR/$script"
   chmod +x "$TOOLS_DIR/$script"
 done
 
+detect_shell
+
 echo -e "\n${GREEN}${BOLD}✅ Atualização concluída com sucesso!${NC}"
-echo -e "${CYAN}🚀 Use ${BOLD}comitar changelog${NC} para ver as novidades."
+echo -e "${CYAN}🚀 Use ${BOLD}comitar news${NC} para ver as novidades."
+
+if [[ -n "$SHELL_RC" ]]; then
+  echo -e "\n${YELLOW}⚙ Para que as mudanças (como o autocomplete) tenham efeito, reinicie seu terminal ou execute:${NC}"
+  echo -e "   ${BOLD}source $SHELL_RC${NC}
+fi

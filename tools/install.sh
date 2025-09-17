@@ -199,7 +199,7 @@ final_message() {
   echo "⚙ Reinicie o terminal ou execute:"
   echo "   source $SHELL_RC"
   echo ""
-  echo "🚀 Agora você pode usar:"
+  echo "🚀 Assim você poderá usar:"
   echo "   comitar --commit"
   echo "   ou simplesmente: cmt"
 }
