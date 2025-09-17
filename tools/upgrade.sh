@@ -37,8 +37,16 @@ if [[ ! -d "$COMITAR_DIR/.git" ]]; then
   exit 1
 fi
 
-echo "➡ Atualizando repositório..."
-(cd "$COMITAR_DIR" && git pull origin main)
+echo "➡ Sincronizando com o repositório oficial..."
+(
+  cd "$COMITAR_DIR"
+  # Garante que o remote 'origin' está configurado corretamente
+  git remote set-url origin https://github.com/ketteiGustavo/comitar.git &>/dev/null || git remote add origin https://github.com/ketteiGustavo/comitar.git &>/dev/null
+  # Busca as últimas alterações do branch main
+  git fetch origin main
+  # Reseta o repositório local para ser um espelho exato do remoto, descartando alterações locais
+  git reset --hard origin/main
+)
 
 echo -e "\n${YELLOW}➡ Atualizando manual...${NC}"
 if sudo -v &>/dev/null; then
@@ -50,10 +58,6 @@ if sudo -v &>/dev/null; then
     fi
 else
     echo -e "${YELLOW}⚠ Não foi possível atualizar o manual (sem permissão de sudo).${NC}"
-    echo -e "${YELLOW}💡 Tente executar manualmente:${NC}"
-    echo -e "${CYAN}   sudo mkdir -p /usr/local/man/man1 ${NC}"
-    echo -e "${CYAN}   sudo cp $COMITAR_DIR/man/comitar.1 /usr/local/man/man1/ ${NC}"
-    echo -e "${CYAN}   sudo mandb /usr/local/man ${NC}"
 fi
 
 detect_shell

@@ -515,8 +515,54 @@ undo_last_commit() {
   fi
 }
 
+check_for_updates() {
+    # Do not check for updates if running inside a CI environment
+    if [[ -n "$CI" ]]; then
+        return
+    fi
+
+    local last_check_file="$COMITAR_INSTALL_ROOT/.last_update_check"
+    local today
+    today=$(date +%Y-%m-%d)
+
+    # Check if we already prompted today
+    if [[ -f "$last_check_file" ]] && [[ "$(cat "$last_check_file")" == "$today" ]]; then
+        return
+    fi
+
+    # Fetch remote version - timeout after 2 seconds to not slow down the user
+    local remote_version
+    remote_version=$(curl -fsSL --max-time 2 "https://raw.githubusercontent.com/ketteiGustavo/comitar/main/VERSION" 2>/dev/null || echo "")
+
+    # Write timestamp to not check again today, even if fetch fails
+    echo "$today" > "$last_check_file"
+
+    # If fetch failed or version is same, do nothing.
+    if [[ -z "$remote_version" ]] || [[ "$remote_version" == "$APP_VERSION" ]]; then
+        return
+    fi
+
+    # If we are here, there's a new version. Prompt the user.
+    echo -e "\n${YELLOW}💡 Uma nova versão do Comitar está disponível: ${GREEN}$remote_version${NC} (você tem a ${RED}$APP_VERSION${NC})"
+    read -rp "   Deseja atualizar agora? (S/n): " choice
+
+    if [[ -z "$choice" || "$choice" =~ ^[sS]$ ]]; then
+        echo -e "${CYAN}🚀 Atualizando...${NC}"
+        # Execute the upgrade script
+        "$UPGRADE_SCRIPT"
+        echo -e "\n${GREEN}✅ Comitar atualizado! Por favor, execute seu comando novamente.${NC}"
+        # Exit so the user doesn't run their original command with the old version
+        exit 0
+    fi
+}
 
 main() {
+  # List of commands that should not trigger the update check
+  local no_update_check_commands="--upgrade --version news --news --help -h"
+  if ! echo "$no_update_check_commands" | grep -q -- "$1"; then
+      check_for_updates
+  fi
+
   case "${1:-}" in
     --install-hook) install_hook ;;
     --help | -h) show_help ;;
