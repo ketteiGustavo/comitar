@@ -97,23 +97,19 @@ detect_and_normalize_remote_url() {
   #  SSH scp-like: git@github.com:org/repo(.git)?
   #  SSH scheme:   ssh://git@github.com/org/repo(.git)?
   #  HTTPS:        https://github.com/org/repo(.git)?
-  if [[ "$url" =~ ^git@[^:]+:[^ ]+(/[^ ]+)?$ ]]; then
-    kind="ssh"
-  elif [[ "$url" =~ ^ssh://git@[^/]+/.+ ]]; then
-    kind="ssh"
-  elif [[ "$url" =~ ^https://[^/]+/.+ ]]; then
-    kind="https"
-  else
-    echo -e "${RED}❌ URL remota inválida.\n   Exemplos:\n     - SSH:   git@github.com:usuario/repositorio.git\n     - HTTPS: https://github.com/usuario/repositorio.git${NC}"
-    return 2
-  fi
+  case "$url" in
+    git@*:* ) kind="ssh" ;;
+    ssh://git@* ) kind="ssh" ;;
+    https://* ) kind="https" ;;
+    * )
+      echo -e "${RED}❌ URL remota inválida...${NC}"
+      return 2
+      ;;
+  esac
 
-  # adiciona .git se o caminho final não tiver
-  if [[ ! "$url" =~ \.git$ ]]; then
-    url="${url}.git"
-  fi
-
+  [[ $url != *.git ]] && url="${url}.git"
   echo "$kind|$url"
+
 }
 
 ensure_git_repo() {
@@ -158,12 +154,13 @@ ensure_git_repo() {
 }
 # Garante que user.name e user.email estão definidos (repo > global)
 ensure_git_identity() {
-  local name email scope="--local"
-
+  local scope="--local"
   if ! check_git_repo_silent; then scope="--global"; fi
 
-  name=$(git config $scope user.name || true)
-  email=$(git config $scope user.email || true)
+  # Pega valores efetivos (considera local e global)
+  local name email
+  name="$(git config --get user.name || true)"
+  email="$(git config --get user.email || true)"
 
   if [[ -z "$name" ]]; then
     read -rp "Informe seu nome para o Git (ex: Luiz Gustavo): " name
@@ -252,7 +249,7 @@ configure_remote_origin() {
   ensure_git_identity
 
   if git config --get remote.origin.url >/dev/null 2>&1; then
-    echo -e "${GREEN}✔ Remoto 'origin' já configurado.${NC}"
+    #echo -e "${GREEN}✔ Remoto 'origin' já configurado.${NC}"
     return 0
   fi
 
