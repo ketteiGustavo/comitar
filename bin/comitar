@@ -64,10 +64,6 @@ test_colors() {
   fi
 }
 
-if [[ ! -f "$CONFIG_FILE" ]]; then
-  cp "$COMITAR_INSTALL_ROOT/config/comitar.json" "$WORK_DIR/$CONFIG_FILE"
-fi
-test_colors
 
 show_version() {
     printf "Versão: %s - %s\n" "$APP_VERSION" "$APP_DATE"
@@ -90,6 +86,231 @@ show_help() {
     printf "  --undo             Desfaz o último commit localmente ou reverte se já enviado\n"
 
 }
+
+# Detecta se é repo HTTPS ou SSH e normaliza .git se faltar.
+detect_and_normalize_remote_url() {
+  local input="$1"
+  local url="$input"
+  local kind=""
+
+  # Aceita:
+  #  SSH scp-like: git@github.com:org/repo(.git)?
+  #  SSH scheme:   ssh://git@github.com/org/repo(.git)?
+  #  HTTPS:        https://github.com/org/repo(.git)?
+  if [[ "$url" =~ ^git@[^:]+:[^ ]+(/[^ ]+)?$ ]]; then
+    kind="ssh"
+  elif [[ "$url" =~ ^ssh://git@[^/]+/.+ ]]; then
+    kind="ssh"
+  elif [[ "$url" =~ ^https://[^/]+/.+ ]]; then
+    kind="https"
+  else
+    echo -e "${RED}❌ URL remota inválida.\n   Exemplos:\n     - SSH:   git@github.com:usuario/repositorio.git\n     - HTTPS: https://github.com/usuario/repositorio.git${NC}"
+    return 2
+  fi
+
+  # adiciona .git se o caminho final não tiver
+  if [[ ! "$url" =~ \.git$ ]]; then
+    url="${url}.git"
+  fi
+
+  echo "$kind|$url"
+}
+
+ensure_git_repo() {
+  # se já for repo, não faz nada
+  if check_git_repo_silent; then
+    return
+  fi
+
+  echo -e "${YELLOW}⚠ Este diretório ainda não é um repositório Git.${NC}"
+  if ! confirm_default_yes "Deseja inicializar um repositório Git aqui?"; then
+    echo -e "${RED}❌ Operação cancelada porque não há repositório Git.${NC}"
+    exit 1
+  fi
+
+  # branch padrão
+  local default_branch
+  default_branch="$(git config --global init.defaultBranch 2>/dev/null || true)"
+  [[ -z "$default_branch" ]] && default_branch="main"
+
+  read -rp "Nome da branch padrão (enter para '${default_branch}'): " user_branch
+  [[ -n "$user_branch" ]] && default_branch="$user_branch"
+
+  git init -b "$default_branch" && echo -e "${GREEN}✔ Git inicializado (branch: ${default_branch}).${NC}"
+
+  # .gitignore mínimo -> .comitar.json ignorado
+  if [[ ! -f ".gitignore" ]]; then
+    echo "# Comitar config file" >> .gitignore
+    echo ".comitar.json" >> .gitignore
+    echo -e "${GREEN}✔ .gitignore criado.${NC}"
+  else
+    grep -qE '(^|/)\.comitar\.json$' .gitignore || { echo ".comitar.json" >> .gitignore; echo -e "${GREEN}✔ '.comitar.json' adicionado ao .gitignore.${NC}"; }
+  fi
+
+  # commit inicial (se houver algo)
+  git add -A
+  if ! git diff --cached --quiet; then
+    git commit -m "chore: initial commit"
+    echo -e "${GREEN}✔ Commit inicial criado.${NC}"
+  else
+    echo -e "${YELLOW}ℹ Nada para commitar no momento (repositório vazio).${NC}"
+  fi
+}
+# Garante que user.name e user.email estão definidos (repo > global)
+ensure_git_identity() {
+  local name email scope="--local"
+
+  if ! check_git_repo_silent; then scope="--global"; fi
+
+  name=$(git config $scope user.name || true)
+  email=$(git config $scope user.email || true)
+
+  if [[ -z "$name" ]]; then
+    read -rp "Informe seu nome para o Git (ex: Luiz Gustavo): " name
+    [[ -z "$name" ]] && { echo -e "${RED}❌ Nome não pode ser vazio.${NC}"; exit 1; }
+    git config $scope user.name "$name"
+    echo -e "${GREEN}✔ user.name configurado (${scope}).${NC}"
+  fi
+
+  if [[ -z "$email" ]]; then
+    read -rp "Informe seu e-mail do Git (ex: seu-email@dominio): " email
+    [[ -z "$email" ]] && { echo -e "${RED}❌ E-mail não pode ser vazio.${NC}"; exit 1; }
+    git config $scope user.email "$email"
+    echo -e "${GREEN}✔ user.email configurado (${scope}).${NC}"
+  fi
+}
+
+# Verifica autenticação SSH com GitHub (chave, agent e teste com ssh -T)
+ensure_github_ssh_auth() {
+  # 1) chave
+  local ssh_key=""
+  if [[ -f "$HOME/.ssh/id_ed25519" ]]; then ssh_key="$HOME/.ssh/id_ed25519"
+  elif [[ -f "$HOME/.ssh/id_rsa" ]]; then ssh_key="$HOME/.ssh/id_rsa"
+  fi
+
+  if [[ -z "$ssh_key" ]]; then
+    echo -e "${YELLOW}⚠ Nenhuma chave SSH padrão encontrada (~/.ssh/id_ed25519 ou id_rsa).${NC}"
+    if confirm_default_yes "Gerar nova chave ed25519 agora?"; then
+      read -rp "E-mail para o rótulo da chave (sugestão: $(git config user.email)): " keymail
+      [[ -z "$keymail" ]] && keymail="$(git config user.email)"
+      ssh-keygen -t ed25519 -C "$keymail"
+      ssh_key="$HOME/.ssh/id_ed25519"
+      echo -e "${GREEN}✔ Chave criada.${NC}"
+    else
+      echo -e "${RED}❌ Sem chave SSH. Configure antes de continuar.${NC}"
+      return 1
+    fi
+  fi
+
+  # 2) agent
+  if [[ -z "$SSH_AUTH_SOCK" ]]; then
+    eval "$(ssh-agent -s)" >/dev/null
+  fi
+  ssh-add "$ssh_key" >/dev/null 2>&1 || true
+
+  # 3) teste
+  echo -e "${CYAN}🔐 Testando SSH com GitHub (ssh -T git@github.com)...${NC}"
+  if ssh -T git@github.com -o StrictHostKeyChecking=accept-new 2>&1 | grep -qiE "success|authenticated|Hi "; then
+    echo -e "${GREEN}✔ Autenticação SSH com GitHub OK.${NC}"
+    return 0
+  else
+    echo -e "${YELLOW}ℹ Não foi possível autenticar via SSH agora.${NC}"
+    echo -e "   1) Adicione a sua chave pública no GitHub (Settings ▸ SSH and GPG keys):"
+    echo -e "      ${BOLD}$( [[ -f "${ssh_key}.pub" ]] && cat "${ssh_key}.pub" || echo "~/.ssh/id_ed25519.pub" )${NC}"
+    echo -e "   2) Depois, rode novamente."
+    return 1
+  fi
+}
+
+# Verifica autenticação HTTPS com GitHub (prioriza GitHub CLI)
+ensure_github_https_auth() {
+  if command -v gh >/dev/null 2>&1; then
+    if gh auth status >/dev/null 2>&1; then
+      echo -e "${GREEN}✔ GitHub CLI autenticado (HTTPS).${NC}"
+      return 0
+    else
+      echo -e "${YELLOW}ℹ GitHub CLI não autenticado.${NC}"
+      if confirm_default_yes "Fazer login com 'gh auth login' agora?"; then
+        gh auth login
+        if gh auth status >/dev/null 2>&1; then
+          echo -e "${GREEN}✔ Autenticado com gh.${NC}"; return 0
+        fi
+      fi
+    fi
+  fi
+
+  echo -e "${YELLOW}⚠ gh não disponível ou não autenticado.${NC}"
+  echo -e "   Opções:"
+  echo -e "   • Instale e use ${BOLD}GitHub CLI (gh)${NC} para login seguro"
+  echo -e "   • OU configure um ${BOLD}Personal Access Token (classic or fine-grained)${NC}"
+  echo -e "     com escopo 'repo' e um helper de credenciais (ex.: git-credential-manager-core)."
+  return 1
+}
+
+# Configura 'origin' pedindo a URL e testando acesso (ls-remote)
+configure_remote_origin() {
+  ensure_git_identity
+
+  if git config --get remote.origin.url >/dev/null 2>&1; then
+    echo -e "${GREEN}✔ Remoto 'origin' já configurado.${NC}"
+    return 0
+  fi
+
+  if ! confirm_default_yes "Deseja configurar o remoto 'origin' agora?"; then
+    echo -e "${YELLOW}ℹ Remoto não configurado.${NC}"
+    return 0
+  fi
+
+  local input url kind
+  read -rp "Informe a URL do remoto (SSH ou HTTPS): " input
+  if [[ -z "$input" ]]; then
+    echo -e "${RED}❌ URL vazia.${NC}"; return 1
+  fi
+
+  local parsed
+  if ! parsed=$(detect_and_normalize_remote_url "$input"); then
+    return 1
+  fi
+  kind="${parsed%%|*}"
+  url="${parsed##*|}"
+
+  # Pré-checa autenticação conforme o tipo
+  if [[ "$kind" == "ssh" ]]; then
+    ensure_github_ssh_auth || true
+  else
+    ensure_github_https_auth || true
+  fi
+
+  git remote add origin "$url"
+  echo -e "${GREEN}✔ 'origin' => $url${NC}"
+
+  echo -e "${CYAN}🔎 Testando acesso ao remoto (git ls-remote)...${NC}"
+  if git ls-remote --heads origin >/dev/null 2>&1; then
+    echo -e "${GREEN}✔ Acesso ao remoto OK.${NC}"
+  else
+    echo -e "${RED}❌ Falha ao acessar o remoto.${NC}"
+    if [[ "$kind" == "ssh" ]]; then
+      echo -e "   Verifique: chave adicionada no GitHub, agent ativo e permissões da chave (~/.ssh, 600/700)."
+    else
+      echo -e "   Verifique: autenticação via gh ou helper de credenciais + token válido com escopo 'repo'."
+    fi
+    return 1
+  fi
+
+  # Se já temos commit, oferecer push -u
+  if git rev-parse HEAD >/dev/null 2>&1; then
+    local branch_current
+    branch_current="$(git branch --show-current)"
+    if confirm_default_yes "Deseja definir upstream (git push -u origin ${branch_current})?"; then
+      if git push -u origin "$branch_current"; then
+        echo -e "${GREEN}✔ Upstream configurado.${NC}"
+      else
+        echo -e "${YELLOW}⚠ Não foi possível fazer push agora.${NC}"
+      fi
+    fi
+  fi
+}
+
 
 confirm_default_yes() {
   local prompt="$1"
@@ -144,7 +365,7 @@ install_hook() {
   local hook_path=".git/hooks/commit-msg"
   if [[ ! -f "$COMMIT_HOOK_SCRIPT" ]]; then
       printf "${RED}❌ Arquivo de validação não encontrado:${NC} $COMMIT_HOOK_SCRIPT\n"
-      printf "Crie o script 'commit-check' e salve em ~/.local/bin/\n"
+      printf "Atualize o comitar com 'comitar --upgrade'\n"
       exit 1
   fi
 
@@ -373,7 +594,7 @@ generate_commit() {
   commit_final="${commit_prefix}${tipo}${commit_scope_formatted}: ${mensagem}"
   echo -e "${BLUE}Commit final:${NC} $commit_final"
   generate_changelog
-  git add "$CHANGELOG_FILE"
+  [[ -n "$CHANGELOG_FILE" && -f "$CHANGELOG_FILE" ]] && git add "$CHANGELOG_FILE"
 
   git add -A
   if git commit -m "$commit_final"; then
@@ -608,7 +829,10 @@ main() {
     news|--news) show_comitar_news ;;
     --commit | "")
       check_dependencies
+      ensure_git_repo
+      configure_remote_origin
       load_config
+      test_colors
       install_hook
       show_commit_menu
       get_commit_message
