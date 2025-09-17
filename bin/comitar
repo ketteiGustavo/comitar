@@ -362,7 +362,7 @@ generate_changelog() {
 send_tags_push() {
   read -rp "🏷️ Deseja enviar as tags? (s/n): " confirm_send
   if [[ -z "$confirm_send" || "$confirm_send" =~ ^[sS]$ ]]; then
-    git push --tags && printf "${VERDE}✔ Tags enviadas com sucesso.${NC}\n" || printf "${VERMELHO}❌ Falha ao enviar tags.${NC}\n"
+    git push --tags && printf "${GREEN}✔ Tags enviadas com sucesso.${NC}\n" || printf "${RED}❌ Falha ao enviar tags.${NC}\n"
   fi
 }
 

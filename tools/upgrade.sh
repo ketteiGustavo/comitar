@@ -26,6 +26,10 @@ BLINK="\e[5m"
 
 echo -e "${CYAN}${BOLD}🔄 Iniciando atualização do COMITAR...${NC}"
 
+# Pede senha do sudo no início para evitar problemas
+echo -e "${CYAN}Para instalar o manual, pode ser necessário privilégio de administrador.${NC}"
+sudo -v
+
 # Atualiza binário principal
 echo -e "${YELLOW}➡ Atualizando binário...${NC}"
 curl -fsSL "$REPO_RAW/bin/comitar" -o "$BIN_DIR/comitar"
@@ -47,19 +51,17 @@ chmod +x "$HOOKS_DIR/commit-check"
 echo -e "${YELLOW}➡ Atualizando manual...${NC}"
 curl -fsSL "$REPO_RAW/man/comitar.1" -o "$MAN_DIR/comitar.1"
 
-# Copia manual para diretório global (requer sudo)
-if [[ -w "/usr/local/man/man1" || $(id -u) -eq 0 ]]; then
-  echo -e "${YELLOW}➡ Copiando manual para /usr/local/man/man1...${NC}"
-  sudo cp "$MAN_DIR/comitar.1" /usr/local/man/man1/comitar.1
-  sudo mandb /usr/local/man &>/dev/null && \
-    echo -e "${GREEN}✔ Manual atualizado com sucesso${NC}" || \
-    echo -e "${RED}⚠ Falha ao atualizar o banco de manpages${NC}"
+# Copia manual para diretório global
+echo -e "${YELLOW}➡ Copiando manual para /usr/local/man/man1...${NC}"
+if sudo cp "$MAN_DIR/comitar.1" /usr/local/man/man1/comitar.1 && sudo mandb /usr/local/man &>/dev/null; then
+    echo -e "${GREEN}✔ Manual atualizado com sucesso${NC}"
 else
-  echo -e "${RED}⚠ Permissão insuficiente para instalar o manual.${NC}"
-  echo -e "${YELLOW}💡 Execute manualmente:${NC}"
-  echo -e "${CYAN}   sudo cp $MAN_DIR/comitar.1 /usr/local/man/man1/${NC}"
-  echo -e "${CYAN}   sudo mandb /usr/local/man${NC}"
+    echo -e "${RED}⚠ Falha ao instalar o manual (talvez falte sudo ou o diretório não exista).${NC}"
+    echo -e "${YELLOW}💡 Tente executar manualmente:${NC}"
+    echo -e "${CYAN}   sudo cp $MAN_DIR/comitar.1 /usr/local/man/man1/ ${NC}"
+    echo -e "${CYAN}   sudo mandb /usr/local/man ${NC}"
 fi
+
 
 # Atualiza changelog
 echo -e "${YELLOW}➡ Atualizando changelog...${NC}"
