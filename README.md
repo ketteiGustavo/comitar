@@ -5,7 +5,7 @@
 [![Maintained](https://img.shields.io/maintenance/yes/2025?style=flat-square&label=mantido)](https://github.com/ketteiGustavo/comitar)
 [![Maintainer !](https://img.shields.io/badge/mantenedor-luizgustavo-blue)](https://github.com/ketteiGustavo)
 [![License: GNU](https://img.shields.io/badge/GNU-yellow.svg)](./LICENSE)
-[![PRs Welcome](https://img.shields.io/badge/PRs-bem_vindos-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
+[![PRs Welcome](https://img.shields.io/badge/PRs-bem_vindos-brightgreen.svg?style=flat-square)](https://github.com/ketteiGustavo/comitar/pulls)
 [![Conventional Commits](https://img.shields.io/badge/commits-conventional-blue.svg?style=flat-square)](https://www.conventionalcommits.org/pt-br/v1.0.0/)
 [![Changelog](https://img.shields.io/badge/changelog-MD-blueviolet.svg?style=flat-square)](./changelog.md)
 [![Code of Conduct](https://img.shields.io/badge/code%20of%20conduct-v1.4-orange.svg?style=flat-square)](./CODE_OF_CONDUCT.md)
@@ -21,7 +21,7 @@
   <br />
   <a href="https://github.com/ketteiGustavo/comitar/issues/new?assignees=&labels=&projects=&template=bug_report.md&title=">Reporte um Bug</a>
   ·
-  <a href="https://github.com/ketteiGustavo/comitar/issues/new?assignees=&labels=&projects=&template=solicitar-um-recurso.md&title=">Solicitar um Recurso</a>
+  <a href="https://github.com/ketteiGustavo/comitar/issues/new?assignees=&labels=&projects=&template=solicitar_recurso.md&title=">Solicitar um Recurso</a>
   ·
   <a href="https://github.com/ketteiGustavo/comitar/discussions">Faça uma pergunta</a>
 </div>
