@@ -17,3 +17,4 @@
 - :🐛: fix: resolvido bug, funcção que controlava a versão sendo chamada no fluxo do comitar (por: Luiz Gustavo em 17-09-2025 11:17)
 - :🔧: chore: alterado o comitar.json padrão, para não trazer valor em control_file e var_name (por: Luiz Gustavo em 17-09-2025 11:20)
 - :✨: feat: função para iniciar repositório e ordem da main (por: Luiz Gustavo em 17-09-2025 13:59)
+- :🐛: fix: alteração em fluxo de commits quando o projeto não foi iniciado como repositório (por: Luiz Gustavo em 17-09-2025 16:52)
