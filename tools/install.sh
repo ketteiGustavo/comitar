@@ -137,12 +137,20 @@ check_dependencies() {
 install_repo() {
     $QUIET || echo -e "${BLUE}📁 Clonando repositório de $REPO_URL...${NC}"
     if [[ -d "$COMITAR_DIR" ]]; then
-        $QUIET || echo -e "${YELLOW}⚠ Diretório $COMITAR_DIR já existe. Fazendo backup para $COMITAR_DIR.bak...${NC}"
+        $QUIET || echo -e "${YELLOW}⚠ Diretório $COMITAR_DIR já existe. Fazendo backup para $COMITAR_DIR.bak ...${NC}"
         mv "$COMITAR_DIR" "$COMITAR_DIR.bak.$(date +%s)"
     fi
     mkdir -p "$BIN_TARGET"
     git clone --depth=1 "$REPO_URL" "$COMITAR_DIR"
     $QUIET || echo -e "${GREEN}✔ Repositório clonado com sucesso!${NC}"
+}
+
+set_permissions() {
+    $QUIET || echo -e "${BLUE}🔐 Configurando permissões dos scripts...${NC}"
+    chmod +x "$COMITAR_DIR"/bin/*
+    chmod +x "$COMITAR_DIR"/tools/*
+    chmod +x "$COMITAR_DIR"/hooks/*
+    chmod +x "$COMITAR_DIR"/run_tests.sh
 }
 
 install_man_page() {
@@ -207,16 +215,18 @@ final_message() {
     $QUIET || echo -e "${YELLOW}⚙ Para que as mudanças tenham efeito, reinicie seu terminal ou execute:${NC}"
     $QUIET || echo -e "   ${BOLD}source $SHELL_RC${NC}"
   fi
-  $QUIET || echo -e "\n${CYAN}🚀 Agora você poderá usar:${NC}"
+  $QUIET || echo -e "\n${CYAN}🚀 Agora você pode usar:${NC}"
   $QUIET || echo -e "   comitar --commit"
   $QUIET || ([[ "$ADD_ALIAS" == true ]] && echo "   ou simplesmente: cmt")
 }
 
 main() {
+  test_colors
   parse_args "$@"
   detect_shell
   check_dependencies
   install_repo
+  set_permissions
   create_symlink
   add_path_and_alias
   install_autocomplete
