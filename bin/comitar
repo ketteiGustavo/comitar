@@ -395,11 +395,12 @@ ask_push() {
 }
 
 show_comitar_news() {
-  local comitar_changelog="$COMITAR_INSTALL_ROOT/changelog.md"
-  if [[ -f "$comitar_changelog" ]]; then
-    less "$comitar_changelog"
+  local changelog_script="$COMITAR_INSTALL_ROOT/tools/changelog.sh"
+  if [[ -d "$COMITAR_INSTALL_ROOT/.git" ]]; then
+    (cd "$COMITAR_INSTALL_ROOT" && "$changelog_script")
   else
-    echo -e "${RED}❌ Changelog do Comitar não encontrado em $comitar_changelog${NC}"
+    echo -e "${RED}❌ Instalação do Comitar via Git não encontrada em $COMITAR_INSTALL_ROOT${NC}"
+    echo -e "${YELLOW}💡 O comando 'news' requer que o Comitar seja instalado com a versão mais recente do instalador.${NC}"
     exit 1
   fi
 }

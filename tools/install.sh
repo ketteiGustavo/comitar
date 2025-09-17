@@ -12,19 +12,15 @@
 
 set -e
 
-INSTALLER_VERSION="1.0.0"
-REPO_RAW="https://raw.githubusercontent.com/ketteiGustavo/comitar/main"
+INSTALLER_VERSION="2.0.0"
+REPO_URL="https://github.com/ketteiGustavo/comitar.git"
 COMITAR_DIR="$HOME/.comitar"
 BIN_TARGET="$HOME/.local/bin"
-CONFIG_DIR="$COMITAR_DIR/config"
-HOOKS_DIR="$COMITAR_DIR/hooks"
-TOOLS_DIR="$COMITAR_DIR/tools"
-MAN_DIR="$COMITAR_DIR/man"
+SHELL_RC=""
 
 ADD_ALIAS=true
 FULL_INSTALL=false
 QUIET=false
-
 
 test_colors() {
   if [ "$(tput colors 2>/dev/null)" -ge 8 ]; then
@@ -93,8 +89,6 @@ parse_args() {
   done
 }
 
-
-# Detecta shell atual
 detect_shell() {
   if [[ $SHELL =~ bash ]]; then
     SHELL_RC="$HOME/.bashrc"
@@ -109,7 +103,7 @@ detect_shell() {
 }
 
 install_dependencies() {
-  echo -e "${BLUE}🔧 Instalando dependências com sudo...${NC}"
+  $QUIET || echo -e "${BLUE}🔧 Instalando dependências com sudo...${NC}"
   if command -v apt &>/dev/null; then
     sudo apt update
     sudo apt install -y jq git
@@ -118,35 +112,51 @@ install_dependencies() {
   elif command -v pacman &>/dev/null; then
     sudo pacman -Sy --noconfirm jq git
   else
-    echo -e "${YELLOW}⚠ Gerenciador de pacotes não detectado. Instale manualmente: jq git${NC}"
+    $QUIET || echo -e "${YELLOW}⚠ Gerenciador de pacotes não detectado. Instale manualmente: jq git${NC}"
   fi
 }
 
-create_directories() {
-  $QUIET || echo -e "${BLUE}📁 Criando diretórios em $COMITAR_DIR...${NC}"
-  mkdir -p "$COMITAR_DIR" "$BIN_TARGET" "$CONFIG_DIR" "$HOOKS_DIR" "$TOOLS_DIR" "$MAN_DIR"
+check_dependencies() {
+    if [[ "$FULL_INSTALL" == true ]]; then
+        install_dependencies
+    fi
+
+    if ! command -v git &>/dev/null; then
+        echo -e "${RED}❌ O 'git' é um requisito para a instalação, mas não foi encontrado.${NC}"
+        echo -e "${YELLOW}💡 Instale o 'git' manualmente ou rode o instalador com a flag --full.${NC}"
+        exit 1
+    fi
+
+    if ! command -v jq &>/dev/null; then
+        echo -e "${RED}❌ O 'jq' é um requisito para a instalação, mas não foi encontrado.${NC}"
+        echo -e "${YELLOW}💡 Instale o 'jq' manualmente ou rode o instalador com a flag --full.${NC}"
+        exit 1
+    fi
 }
 
+install_repo() {
+    $QUIET || echo -e "${BLUE}📁 Clonando repositório de $REPO_URL...${NC}"
+    if [[ -d "$COMITAR_DIR" ]]; then
+        $QUIET || echo -e "${YELLOW}⚠ Diretório $COMITAR_DIR já existe. Fazendo backup para $COMITAR_DIR.bak...${NC}"
+        mv "$COMITAR_DIR" "$COMITAR_DIR.bak.$(date +%s)"
+    fi
+    mkdir -p "$BIN_TARGET"
+    git clone --depth=1 "$REPO_URL" "$COMITAR_DIR"
+    $QUIET || echo -e "${GREEN}✔ Repositório clonado com sucesso!${NC}"
+}
 
-download_files() {
-  $QUIET || echo -e "${GREEN}⬇ Baixando arquivos...${NC}"
-
-  mkdir -p "$COMITAR_DIR/bin"
-  curl -fsSL "$REPO_RAW/bin/comitar" -o "$COMITAR_DIR/bin/comitar"
-  chmod +x "$COMITAR_DIR/bin/comitar"
-
-  curl -fsSL "$REPO_RAW/config/comitar.json" -o "$CONFIG_DIR/comitar.json"
-  curl -fsSL "$REPO_RAW/hooks/commit-check" -o "$HOOKS_DIR/commit-check"
-  chmod +x "$HOOKS_DIR/commit-check"
-
-  curl -fsSL "$REPO_RAW/man/comitar.1" -o "$MAN_DIR/comitar.1"
-  curl -fsSL "$REPO_RAW/changelog.md" -o "$COMITAR_DIR/changelog.md"
-
-  for script in upgrade.sh uninstall.sh changelog.sh comitar-autocomplete; do
-    $QUIET || echo -e "${CYAN}📥 tools/$script${NC}"
-    curl -fsSL "$REPO_RAW/tools/$script" -o "$TOOLS_DIR/$script"
-    chmod +x "$TOOLS_DIR/$script"
-  done
+install_man_page() {
+    $QUIET || echo -e "\n${YELLOW}➡ Instalando manual...${NC}"
+    if sudo -v &>/dev/null; then
+        sudo mkdir -p /usr/local/man/man1
+        if sudo cp "$COMITAR_DIR/man/comitar.1" /usr/local/man/man1/comitar.1 && sudo mandb /usr/local/man &>/dev/null; then
+            $QUIET || echo -e "${GREEN}✔ Manual instalado com sucesso${NC}"
+        else
+            $QUIET || echo -e "${RED}⚠ Falha ao instalar o manual.${NC}"
+        fi
+    else
+      $QUIET || echo -e "${YELLOW}⚠ Não foi possível instalar o manual (sem permissão de sudo).${NC}"
+    fi
 }
 
 create_symlink() {
@@ -169,50 +179,48 @@ add_path_and_alias() {
 }
 
 install_autocomplete() {
-  echo -e "${YELLOW}📦 Instalando autocomplete...${NC}"
-  AUTOCOMPLETE_FILE="$TOOLS_DIR/comitar-autocomplete"
+  $QUIET || echo -e "${YELLOW}📦 Instalando autocomplete...${NC}"
+  local AUTOCOMPLETE_FILE="$COMITAR_DIR/tools/comitar-autocomplete"
 
   if [[ -n "$ZSH_VERSION" || "$SHELL" =~ zsh ]]; then
-    # Zsh
-    ZSH_COMPLETION="$HOME/.zshrc"
+    local ZSH_COMPLETION="$HOME/.zshrc"
     if ! grep -q "$AUTOCOMPLETE_FILE" "$ZSH_COMPLETION"; then
       echo "source $AUTOCOMPLETE_FILE" >> "$ZSH_COMPLETION"
-      echo -e "${GREEN}✔ Autocomplete configurado para Zsh${NC}"
+      $QUIET || echo -e "${GREEN}✔ Autocomplete configurado para Zsh${NC}"
     fi
     source "$AUTOCOMPLETE_FILE"
   elif [[ -n "$BASH_VERSION" || "$SHELL" =~ bash ]]; then
-    # Bash
-    BASH_COMPLETION="$HOME/.bash_completion"
+    local BASH_COMPLETION="$HOME/.bash_completion"
     if ! grep -q "$AUTOCOMPLETE_FILE" "$BASH_COMPLETION" 2>/dev/null; then
       echo "source $AUTOCOMPLETE_FILE" >> "$BASH_COMPLETION"
-      echo -e "${GREEN}✔ Autocomplete configurado para Bash${NC}"
+      $QUIET || echo -e "${GREEN}✔ Autocomplete configurado para Bash${NC}"
     fi
     source "$AUTOCOMPLETE_FILE"
   else
-    echo -e "${YELLOW}⚠️ Shell não suportado automaticamente. Adicione manualmente:${NC}"
-    echo "source $AUTOCOMPLETE_FILE"
+    $QUIET || echo -e "${YELLOW}⚠️ Shell não suportado automaticamente. Adicione manualmente:\nsource $AUTOCOMPLETE_FILE${NC}"
   fi
 }
 
 final_message() {
-  echo -e "\n${GREEN}🎉 Instalação concluída com sucesso!${NC}"
-  echo "⚙ Reinicie o terminal ou execute:"
-  echo "   source $SHELL_RC"
-  echo ""
-  echo "🚀 Assim você poderá usar:"
-  echo "   comitar --commit"
-  echo "   ou simplesmente: cmt"
+  $QUIET || echo -e "\n${GREEN}🎉 Instalação concluída com sucesso!${NC}"
+  if [[ -n "$SHELL_RC" ]]; then
+    $QUIET || echo -e "${YELLOW}⚙ Para que as mudanças tenham efeito, reinicie seu terminal ou execute:${NC}"
+    $QUIET || echo -e "   ${BOLD}source $SHELL_RC${NC}"
+  fi
+  $QUIET || echo -e "\n${CYAN}🚀 Agora você poderá usar:${NC}"
+  $QUIET || echo -e "   comitar --commit"
+  $QUIET || ([[ "$ADD_ALIAS" == true ]] && echo "   ou simplesmente: cmt")
 }
 
 main() {
   parse_args "$@"
   detect_shell
-  $FULL_INSTALL && install_dependencies
-  create_directories
-  download_files
+  check_dependencies
+  install_repo
   create_symlink
   add_path_and_alias
   install_autocomplete
+  install_man_page
   final_message
 }
 
