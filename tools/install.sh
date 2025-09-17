@@ -12,7 +12,7 @@
 
 set -e
 
-INSTALLER_VERSION="2.0.0"
+INSTALLER_VERSION="2.1.0"
 REPO_URL="https://github.com/ketteiGustavo/comitar.git"
 COMITAR_DIR="$HOME/.comitar"
 BIN_TARGET="$HOME/.local/bin"
@@ -137,20 +137,23 @@ check_dependencies() {
 install_repo() {
     $QUIET || echo -e "${BLUE}📁 Clonando repositório de $REPO_URL...${NC}"
     if [[ -d "$COMITAR_DIR" ]]; then
-        $QUIET || echo -e "${YELLOW}⚠ Diretório $COMITAR_DIR já existe. Fazendo backup para $COMITAR_DIR.bak ...${NC}"
+        $QUIET || echo -e "${YELLOW}⚠ Diretório $COMITAR_DIR já existe. Fazendo backup para $COMITAR_DIR.bak...${NC}"
         mv "$COMITAR_DIR" "$COMITAR_DIR.bak.$(date +%s)"
     fi
     mkdir -p "$BIN_TARGET"
-    git clone --depth=1 "$REPO_URL" "$COMITAR_DIR"
+    # Clona os últimos 10 commits para ter um histórico para o comando 'news', mas mantendo a instalação leve.
+    git clone --depth=10 "$REPO_URL" "$COMITAR_DIR"
     $QUIET || echo -e "${GREEN}✔ Repositório clonado com sucesso!${NC}"
 }
 
 set_permissions() {
     $QUIET || echo -e "${BLUE}🔐 Configurando permissões dos scripts...${NC}"
-    chmod +x "$COMITAR_DIR"/bin/*
-    chmod +x "$COMITAR_DIR"/tools/*
-    chmod +x "$COMITAR_DIR"/hooks/*
-    chmod +x "$COMITAR_DIR"/run_tests.sh
+    # Torna todos os scripts .sh executáveis
+    find "$COMITAR_DIR" -type f -name "*.sh" -exec chmod +x {} +
+    # Torna executáveis os scripts que não têm extensão .sh
+    chmod +x "$COMITAR_DIR"/bin/comitar
+    chmod +x "$COMITAR_DIR"/hooks/commit-check
+    chmod +x "$COMITAR_DIR"/tools/comitar-autocomplete
 }
 
 install_man_page() {
