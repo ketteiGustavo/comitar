@@ -524,7 +524,7 @@ main() {
     --undo) undo_last_commit ;;
     changelog|--changelog) "$CHANGELOG_SCRIPT" "${@:2}" ;;
     --uninstall) "$UNINSTALL_SCRIPT" ;;
-    --upgrade) "$UPGRADE_SCRIPT" ;;
+    --upgrade | -up | up) "$UPGRADE_SCRIPT" ;;
     news|--news) show_comitar_news ;;
     --commit | "")
       check_dependencies

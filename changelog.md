@@ -5,3 +5,4 @@
 - :🐛: fix: corrigido bug na ordem de atualização do changelog (26-07-2025 20:40)
 - :📚: docs: ajuste no README (17-09-2025 09:28)
 - :📚: docs: ajuste no README, links corretos (17-09-2025 09:31)
+- :✨: feat: opções de argumentos melhoradas (por: Luiz Gustavo em 17-09-2025 10:00)
