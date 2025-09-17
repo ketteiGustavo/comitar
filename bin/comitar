@@ -352,7 +352,9 @@ generate_commit() {
 
 generate_changelog() {
   if jq -e '.generate_changelog' "$CONFIG_FILE" | grep -q true; then
-    echo "- :$emoji: $tipo: $mensagem ($(date +'%d-%m-%Y %H:%M'))" >> "$CHANGELOG_FILE"
+    local user_name
+    user_name=$(git config user.name)
+    echo "- :$emoji: $tipo: $mensagem (por: $user_name em $(date +'%d-%m-%Y %H:%M'))" >> "$CHANGELOG_FILE"
     echo -e "${GREEN}✔ Changelog atualizado em $CHANGELOG_FILE${NC}"
   fi
 }

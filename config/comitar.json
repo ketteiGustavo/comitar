@@ -9,7 +9,7 @@
   "var_name": "APP_VERSION",
   "version_build": false,
   "generate_changelog": true,
-  "changelog_path": ".changelog.md",
+  "changelog_path": "changelog.md",
   "default_types": [
     {
       "type": "feat",
