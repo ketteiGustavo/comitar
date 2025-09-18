@@ -67,6 +67,13 @@ remove_alias_from_rc() {
   fi
 }
 
+remove_auto_complete() {
+  if [[ -n "$SHELL_RC" && -f "$SHELL_RC" ]]; then
+    sed -i '\|comitar-autocomplete|d' "$SHELL_RC"
+    echo -e "${GREEN}✔ Autocomplete removido de $SHELL_RC${NC}"
+  fi
+}
+
 final_message() {
   echo -e "\n${CYAN}${BOLD}🧼 COMITAR foi desinstalado com sucesso.${NC}"
   echo -e "${YELLOW}⚙ Reinicie seu terminal ou execute:${NC}"
@@ -78,6 +85,7 @@ main() {
   confirm_uninstall
   remove_files
   remove_alias_from_rc
+  remove_auto_complete
   final_message
 }
 
