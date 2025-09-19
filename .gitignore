@@ -1,3 +1,6 @@
 
 # Comitar config file
 .comitar.json
+
+# Comitar V2
+.comitarV2.json
