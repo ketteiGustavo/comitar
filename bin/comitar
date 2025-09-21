@@ -573,6 +573,24 @@ get_commit_message() {
   done
   # Armazena o escopo para uso posterior
   COMMIT_SCOPE="$scope"
+
+  # Captura o corpo do commit (descrição longa)
+  COMMIT_BODY=""
+  local use_body_config
+  use_body_config=$(jq -r '.use_commit_body // false' "$CONFIG_FILE")
+  if [[ "$use_body_config" == "true" ]]; then
+    echo -e "   💬  Digite a descrição longa (corpo do commit). Pressione Enter para nova linha."
+    echo -e "      Digite ${BOLD}FIM${NC} em uma linha nova para concluir."
+    local body_lines=""
+    while IFS= read -r line; do
+        if [[ "$line" == "FIM" ]]; then
+            break
+        fi
+        body_lines+="$line\n"
+    done
+    # Remove a última quebra de linha adicionada
+    COMMIT_BODY=$(echo -e "${body_lines%\\n}")
+  fi
 }
 
 generate_commit() {
@@ -591,11 +609,22 @@ generate_commit() {
 
   commit_final="${commit_prefix}${tipo}${commit_scope_formatted}: ${mensagem}"
   echo -e "${BLUE}Commit final:${NC} $commit_final"
+  if [[ -n "$COMMIT_BODY" ]]; then
+    echo -e "${BLUE}Corpo:${NC}\n$COMMIT_BODY"
+  fi
+  
   generate_changelog
   [[ -n "$CHANGELOG_FILE" && -f "$CHANGELOG_FILE" ]] && git add "$CHANGELOG_FILE"
 
   git add -A
-  if git commit -m "$commit_final"; then
+
+  local commit_args=()
+  commit_args+=("-m" "$commit_final")
+  if [[ -n "$COMMIT_BODY" ]]; then
+    commit_args+=("-m" "$COMMIT_BODY")
+  fi
+
+  if git commit "${commit_args[@]}"; then
     echo -e "${GREEN}✔ Commit realizado com sucesso.${NC}"
     ask_push
   else

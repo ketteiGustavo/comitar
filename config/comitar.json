@@ -1,6 +1,7 @@
 {
   "default_push": false,
   "ask_push": true,
+  "use_commit_body": false,
   "use_colors": true,
   "use_blinks": true,
   "use_emojis": true,
