@@ -25,8 +25,8 @@ until="HEAD"
 # Detectar argumentos
 for arg in "$@"; do
   case "$arg" in
-    --text|--md|--raw) output="${arg#--}" ;;
-    HEAD|main|master|v*) [[ -z "$until_set" ]] && until="$arg" && until_set=1 || since="$arg" ;;
+    --text|--md|--raw) output="${arg#--}" ;; 
+    HEAD|main|master|v*) [[ -z "$until_set" ]] && until="$arg" && until_set=1 || since="$arg" ;; 
   esac
 done
 
@@ -50,9 +50,9 @@ format_header() {
   local level="$1"
   local title="$2"
   case "$output" in
-    md) printf '%s %s\n\n' "$(head -c "$level" < <(yes '#'))" "$title" ;;
-    raw) echo -e "$title\n$(printf '%.0s-' $(seq 1 ${#title}))\n" ;;
-    text) echo -e "\033[1m$title\033[0m" ;;
+    md) printf '%s %s\n\n' "$(head -c "$level" < <(yes '#'))" "$title" ;; 
+    raw) echo -e "$title\n$(printf '%.0s-' $(seq 1 ${#title}))\n" ;; 
+    text) echo -e "\033[1m$title\033[0m" ;; 
   esac
 }
 
@@ -84,7 +84,7 @@ commits=$(git log $range --no-merges --pretty=format:'%H|%s|%b')
 
 declare -A sections
 declare -A breakings
-declare -A reverts
+reverted_hashes=""
 
 #regex='^(:[^:]+:\s*)?([a-z]+)(\(([^)]*)\))?:[[:space:]]+(.+)'
 regex='^(:[^:]+:[[:space:]]*)*([a-z]+)(\(([^)]*)\))?:[[:space:]]+(.+)'
@@ -111,13 +111,27 @@ while IFS='|' read -r hash subject body; do
   if [[ "$subject" =~ ^Revert ]]; then
     revert_regex='[Rr]everts[[:space:]]commit[[:space:]]([0-9a-f]{7,40})'
     if [[ "$body" =~ $revert_regex ]]; then
-      reverts["${BASH_REMATCH[1]}"]=1
+      reverted_hashes+="${BASH_REMATCH[1]}"$'\n'
       continue
     fi
   fi
 
   # Ignora se foi revertido
-  [[ -n "${reverts[$hash]}" ]] && continue
+  is_reverted=0
+  if [[ -n "$reverted_hashes" ]]; then
+    original_ifs="$IFS"
+    IFS=$'\n'
+    for prefix in $reverted_hashes; do
+      if [[ -n "$prefix" && "$hash" == "$prefix"* ]]; then
+        is_reverted=1
+        break
+      fi
+    done
+    IFS="$original_ifs"
+  fi
+  if [[ $is_reverted -eq 1 ]]; then
+    continue
+  fi
 
   sections["$type"]+="$hash|$scope|$msg"$'\n'
 done <<< "$commits"
