@@ -2,7 +2,7 @@
 ################################################################################
 # comitar - Commit semântico com configuração dinâmica, changelog automático e hook integrado
 #
-# DATA: 25/07/2025 - Versao 0.0.2
+# DATA: 25/07/2025 - Versao 0.0.2c
 # -------------------------------------------------------------------------------
 # Autor: Luiz Gustavo <luizg.devlx@gmail.com>
 # -------------------------------------------------------------------------------
@@ -16,7 +16,7 @@ CONFIG_FILE=".comitar.json"
 CHANGELOG_FILE=""
 INSTALL_DIR="$HOME/.local/bin"
 
-readonly APP_VERSION="0.0.2"
+readonly APP_VERSION="0.0.2c"
 readonly APP_DATE="21/09/2025"
 readonly SCRIPT_NAME="$(basename "$0")"
 readonly WORK_DIR="$(pwd)"
@@ -407,29 +407,41 @@ check_and_update_version() {
   version_control=$(jq -r '.version_control // false' "$CONFIG_FILE")
   [[ "$version_control" != "true" ]] && return
 
-  local control_file
-  control_file=$(jq -r '.control_file // "VERSION"' "$CONFIG_FILE")
-  local var_name
-  var_name=$(jq -r '.var_name // ""' "$CONFIG_FILE")
+  mapfile -t version_targets < <(jq -c '.version_targets[]?' "$CONFIG_FILE")
 
-  if [[ ! -f "$control_file" ]]; then
-    echo -e "${RED}❌ Arquivo de versão não encontrado: $control_file${NC}"
+  if [[ ${#version_targets[@]} -eq 0 ]]; then
+    local control_file
+    control_file=$(jq -r '.control_file // ""' "$CONFIG_FILE")
+    if [[ -z "$control_file" ]]; then return; fi
+    local var_name
+    var_name=$(jq -r '.var_name // ""' "$CONFIG_FILE")
+    version_targets+=("$(jq -c --arg file "$control_file" --arg var "$var_name" '{file: $file, var_name: $var}' <<< '')")
+  fi
+
+  local source_target="${version_targets[0]}"
+  local source_file
+  source_file=$(jq -r '.file' <<< "$source_target")
+  local source_var
+  source_var=$(jq -r '.var_name' <<< "$source_target")
+
+  if [[ ! -f "$source_file" ]]; then
+    echo -e "${RED}❌ Arquivo de versão fonte não encontrado: $source_file${NC}"
     return
   fi
 
   local current_version
-  if [[ -n "$var_name" ]]; then
-    current_version=$(grep -E "^$var_name:" "$control_file" | awk '{print $2}')
+  if [[ -n "$source_var" ]]; then
+    current_version=$(grep -E "^\s*${source_var}" "$source_file" | sed -E 's/.*[=:\"]+[[:space:]]*//; s/"//g')
   else
-    current_version=$(cat "$control_file" | tr -d '[:space:]')
+    current_version=$(cat "$source_file" | tr -d '[:space:]')
   fi
 
   if [[ -z "$current_version" ]]; then
-    echo -e "${RED}❌ Não foi possível ler a versão atual do arquivo '$control_file'${NC}"
+    echo -e "${RED}❌ Não foi possível ler a versão atual do arquivo '$source_file'${NC}"
     return
   fi
 
-  echo -e "${CYAN}Versão atual em $control_file: $current_version${NC}"
+  echo -e "${CYAN}Versão atual em $source_file: $current_version${NC}"
   read -rp "Deseja alterar a versão antes do commit? (s/n): " change_version
   if [[ -z "$change_version" || "$change_version" =~ ^[sS]$ ]]; then
     local version_core
@@ -487,12 +499,29 @@ check_and_update_version() {
         fi
     fi
 
-    if [[ -n "$var_name" ]]; then
-        sed -i "s/^$var_name:.*/$var_name: ${new_version}/" "$control_file"
-    else
-        sed -i "1s/.*/$new_version/" "$control_file"
-    fi
-    echo -e "${GREEN}✔ Versão atualizada para: $new_version${NC}"
+    echo -e "${GREEN}✔ Versão será atualizada para: $new_version${NC}"
+    for target in "${version_targets[@]}"; do
+      local target_file
+      target_file=$(jq -r '.file' <<< "$target")
+      local target_var
+      target_var=$(jq -r '.var_name' <<< "$target")
+
+      if [[ ! -f "$target_file" ]]; then
+        echo -e "${YELLOW}⚠️  Arquivo alvo não encontrado, pulando: $target_file${NC}"
+        continue
+      fi
+
+      if [[ -n "$target_var" ]]; then
+        local safe_var
+        safe_var=$(printf '%s\n' "$target_var" | sed -e 's/[][().*^$+{}?|\\]/\\&/g')
+        #sed -i -E "s/^(\s*${target_var}\s*[:=]\s*['"]?).*(['"]?)$/\1${new_version}\2/" "$target_file"
+        sed -i -E 's/^([[:space:]]*'"$safe_var"'[[:space:]]*[:=][[:space:]]*['"'"'"]?).*(['"'"'"]?)$/\1'"$new_version"'\2/' "$target_file"
+      else
+        sed -i "1s/.*/$new_version/" "$target_file"
+      fi
+      echo -e "${GREEN}  -> Arquivo '$target_file' atualizado.${NC}"
+      echo -e "${GREEN}✔ Versão atualizada para: $new_version${NC}"
+    done
   fi
 }
 
@@ -617,7 +646,7 @@ get_commit_message() {
         body_lines+="$line\n"
     done
     # Remove a última quebra de linha adicionada
-    COMMIT_BODY=$(echo -e "${body_lines%\\n}")
+    COMMIT_BODY=$(echo -e "${body_lines%\n}")
   fi
 }
 
@@ -781,30 +810,37 @@ configure_comitar() {
   # Configurar controle de versão automático
   current_control_version=$(jq -r '.version_control // false' "$CONFIG_FILE")
   read -rp "Controlar versão automaticamente? (s/n) [atual: $([[ "$current_control_version" == "true" ]] && echo "sim" || echo "não")]: " choice
-  if [[ -z "$choice" || "$choice" =~ ^[sS]$ ]]; then
-    jq '.version_control = true' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
 
-    # Se sim, pergunta o nome do arquivo
-    current_file=$(jq -r '.control_file // "your.file"' "$CONFIG_FILE")
-    read -rp "Arquivo que contém a versão? [atual: $current_file]: " input_file
-    [[ -n "$input_file" ]] && jq --arg file "$input_file" '.control_file = $file' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+  if [[ "$choice" =~ ^[nN]$ ]]; then
+    jq '.version_control = false' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+    echo -e "${YELLOW}ℹ️ Controle de versão desativado.${NC}"
+  elif [[ -z "$choice" || "$choice" =~ ^[sS]$ ]]; then
+    # Ativa o controle e limpa a lista de alvos para começar do zero.
+    jq '.version_control = true | .version_targets = []' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+    echo -e "${CYAN}Configurando alvos de versionamento. O primeiro que você adicionar será a 'fonte da verdade'.${NC}"
+    echo -e "${CYAN}Pressione Enter em um campo de arquivo vazio para parar de adicionar.${NC}"
 
-    # Nome da variável
-    current_var=$(jq -r '.var_name // "version"' "$CONFIG_FILE")
-    read -rp "Nome da variável de versão? [atual: $current_var]: " input_var
-    [[ -n "$input_var" ]] && jq --arg var "$input_var" '.var_name = $var' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+    while true; do
+      echo ""
+      read -rp "Caminho do arquivo alvo (ex: VERSION, package.json): " input_file
+      if [[ -z "$input_file" ]]; then
+        break
+      fi
+
+      read -rp "Nome da variável no arquivo (deixe em branco se não houver): " input_var
+
+      jq --arg file "$input_file" --arg var "$input_var" '.version_targets += [{file: $file, var_name: $var}]' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+      echo -e "${GREEN}✔ Alvo adicionado: $input_file ($input_var)${NC}"
+    done
 
     # Flag extra: controlar build separadamente?
     current_build=$(jq -r '.version_build // false' "$CONFIG_FILE")
-    read -rp "Controlar número de build separadamente (ex: +1)? (s/n) [atual: $([[ "$current_build" == "true" ]] && echo "sim" || echo "não")]: " input_build
-    if [[ -z "$choice" || "$input_build" =~ ^[sS]$ ]]; then
+    read -rp "Controlar número de build separadamente (ex: 1.2.3+1)? (s/n) [atual: $([[ "$current_build" == "true" ]] && echo "sim" || echo "não")]: " input_build
+    if [[ -z "$input_build" || "$input_build" =~ ^[sS]$ ]]; then
       jq '.version_build = true' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
     elif [[ "$input_build" =~ ^[nN]$ ]]; then
       jq '.version_build = false' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
     fi
-
-  elif [[ "$choice" =~ ^[nN]$ ]]; then
-    jq '.version_control = false' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
   fi
 
   echo -e "${GREEN}✔ Configuração atualizada com sucesso!${NC}"
