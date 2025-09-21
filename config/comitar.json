@@ -1,0 +1,132 @@
+{
+  "default_push": true,
+  "use_colors": true,
+  "use_blinks": true,
+  "use_emojis": true,
+  "use_scope": false,
+  "version_control": false,
+  "control_file": "",
+  "var_name": "",
+  "version_build": false,
+  "generate_changelog": true,
+  "changelog_path": "CHANGELOG.md",
+  "default_types": [
+    {
+      "type": "feat",
+      "emoji": "✨",
+      "label": "Novo recurso"
+    },
+    {
+      "type": "fix",
+      "emoji": "🐛",
+      "label": "Correção de bug"
+    },
+    {
+      "type": "docs",
+      "emoji": "📚",
+      "label": "Documentação"
+    },
+    {
+      "type": "test",
+      "emoji": "🧪",
+      "label": "Testes"
+    },
+    {
+      "type": "build",
+      "emoji": "📦",
+      "label": "Build / dependências"
+    },
+    {
+      "type": "perf",
+      "emoji": "⚡",
+      "label": "Performance"
+    },
+    {
+      "type": "style",
+      "emoji": "👌",
+      "label": "Estilo / revisão"
+    },
+    {
+      "type": "refactor",
+      "emoji": "♻️",
+      "label": "Refatoração"
+    },
+    {
+      "type": "chore",
+      "emoji": "🔧",
+      "label": "Configuração / tarefas"
+    },
+    {
+      "type": "ci",
+      "emoji": "🧱",
+      "label": "Integração contínua"
+    },
+    {
+      "type": "raw",
+      "emoji": "🗃️",
+      "label": "Dados RAW"
+    },
+    {
+      "type": "cleanup",
+      "emoji": "🧹",
+      "label": "Limpeza de código"
+    },
+    {
+      "type": "remove",
+      "emoji": "🗑️",
+      "label": "Remoção de arquivos"
+    }
+  ],
+  "custom_types": [
+    {
+      "type": "accessibility",
+      "emoji": "♿",
+      "label": "Acessibilidade"
+    },
+    {
+      "type": "responsive",
+      "emoji": "📱",
+      "label": "Responsividade"
+    },
+    {
+      "type": "animation",
+      "emoji": "💫",
+      "label": "Animações / Transições"
+    },
+    {
+      "type": "seo",
+      "emoji": "🔍️",
+      "label": "SEO"
+    },
+    {
+      "type": "security",
+      "emoji": "🔒️",
+      "label": "Segurança"
+    },
+    {
+      "type": "rollback",
+      "emoji": "💥",
+      "label": "Revertendo alterações"
+    },
+    {
+      "type": "text",
+      "emoji": "📝",
+      "label": "Texto / Conteúdo"
+    },
+    {
+      "type": "typing",
+      "emoji": "🏷️",
+      "label": "Tipagem"
+    },
+    {
+      "type": "error",
+      "emoji": "🥅",
+      "label": "Tratamento de erros"
+    },
+    {
+      "type": "soon",
+      "emoji": "🔜",
+      "label": "Lista de ideias"
+    }
+  ]
+}

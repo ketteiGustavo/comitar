@@ -1,0 +1,929 @@
+#!/usr/bin/env bash
+################################################################################
+# comitar - Commit semântico com configuração dinâmica, changelog automático e hook integrado
+#
+# DATA: 25/07/2025 - Versao 2.0.1
+# -------------------------------------------------------------------------------
+# Autor: Luiz Gustavo <luizg.devlx@gmail.com>
+# -------------------------------------------------------------------------------
+# Controle de Versão:
+##  - Consultar changelog.md do projeto
+################################################################################
+
+set -e
+
+CONFIG_FILE=".comitar.json"
+CHANGELOG_FILE=""
+INSTALL_DIR="$HOME/.local/bin"
+
+readonly APP_VERSION="2.3.0"
+readonly APP_DATE="17/09/2025"
+readonly SCRIPT_NAME="$(basename "$0")"
+readonly WORK_DIR="$(pwd)"
+readonly COMITAR_INSTALL_ROOT="$HOME/.comitar"
+readonly COMMIT_HOOK_SCRIPT="$COMITAR_INSTALL_ROOT/hooks/commit-check"
+readonly TOOLS_DIR="$COMITAR_INSTALL_ROOT/tools"
+readonly CHANGELOG_SCRIPT="$TOOLS_DIR/changelog.sh"
+readonly UNINSTALL_SCRIPT="$TOOLS_DIR/uninstall.sh"
+readonly UPGRADE_SCRIPT="$TOOLS_DIR/upgrade.sh"
+
+check_git_repo_silent() {
+  git rev-parse --is-inside-work-tree &>/dev/null
+}
+
+
+test_colors() {
+  local use_colors_config=$(jq -r '.use_colors' "$CONFIG_FILE")
+  local use_blinks_config=$(jq -r '.use_blinks' "$CONFIG_FILE")
+  if [ "$(tput colors 2>/dev/null)" -ge 8 ] && [[ "$use_colors_config" == "true" ]] ; then
+    RED="\e[31m"
+    GREEN="\e[32m"
+    YELLOW="\e[33m"
+    BLUE="\e[34m"
+    MAGENTA="\e[35m"
+    CYAN="\e[36m"
+    GRAY="\e[37m"
+    BOLD="\e[1m"
+    NC="\e[0m"   # no_color
+  else
+    USE_COLORS=0
+    RED=""
+    GREEN=""
+    YELLOW=""
+    BLUE=""
+    MAGENTA=""
+    CYAN=""
+    GRAY=""
+    BOLD=""
+    NC=""
+  fi
+  if [ "$(tput colors 2>/dev/null)" -ge 8 ] && [[ "$use_blinks_config" == "true" ]] ; then
+    BLINK="\e[5m"
+  else
+    BLINK=""
+  fi
+}
+
+
+show_version() {
+    printf "Versão: %s - %s\n" "$APP_VERSION" "$APP_DATE"
+}
+
+show_help() {
+    printf "${BLUE}${BOLD} %s${NC} - Commits padronizados com Conventional Commits + Hook\n\n" "$SCRIPT_NAME"
+    printf "USO:\n"
+    printf "  %s [opções]\n\n" "$SCRIPT_NAME"
+    printf "OPÇÕES:\n"
+    printf "  --init             Inicializa repo: git init, README, remoto e push\n"
+    printf "  --install-hook     Instala o hook 'commit-msg' no repositório atual\n"
+    printf "  --commit           Abre menu para gerar commit semântico com emoji\n"
+    printf "  --changelog        Gera o changelog do projeto\n"
+    printf "  --upgrade          Atualiza o comitar para a versão mais recente\n"
+    printf "  --uninstall        Desinstala o comitar\n"
+    printf "  --news             Mostra as novidades do comitar\n"
+    printf "  --help    | -h     Exibe esta ajuda\n"
+    printf "  --version | -V     Exibe a versão do utilitário\n"
+    printf "  --config  | -c     Abre menu interativo de configurações\n"
+    printf "  --undo             Desfaz o último commit localmente ou reverte se já enviado\n"
+
+}
+
+# Detecta se é repo HTTPS ou SSH e normaliza .git se faltar.
+detect_and_normalize_remote_url() {
+  local input="$1"
+  local url="$input"
+  local kind=""
+
+  # Aceita:
+  #  SSH scp-like: git@github.com:org/repo(.git)?
+  #  SSH scheme:   ssh://git@github.com/org/repo(.git)?
+  #  HTTPS:        https://github.com/org/repo(.git)?
+  case "$url" in
+    git@*:* ) kind="ssh" ;;
+    ssh://git@* ) kind="ssh" ;;
+    https://* ) kind="https" ;;
+    * )
+      echo -e "${RED}❌ URL remota inválida...${NC}"
+      return 2
+      ;;
+  esac
+
+  [[ $url != *.git ]] && url="${url}.git"
+  echo "$kind|$url"
+
+}
+
+ensure_git_repo() {
+  # se já for repo, não faz nada
+  if check_git_repo_silent; then
+    return
+  fi
+
+  echo -e "${YELLOW}⚠ Este diretório ainda não é um repositório Git.${NC}"
+  if ! confirm_default_yes "Deseja inicializar um repositório Git aqui?"; then
+    echo -e "${RED}❌ Operação cancelada porque não há repositório Git.${NC}"
+    exit 1
+  fi
+
+  # branch padrão
+  local default_branch
+  default_branch="$(git config --global init.defaultBranch 2>/dev/null || true)"
+  [[ -z "$default_branch" ]] && default_branch="main"
+
+  read -rp "Nome da branch padrão (enter para '${default_branch}'): " user_branch
+  [[ -n "$user_branch" ]] && default_branch="$user_branch"
+
+  git init -b "$default_branch" && echo -e "${GREEN}✔ Git inicializado (branch: ${default_branch}).${NC}"
+
+  # .gitignore mínimo -> .comitar.json ignorado
+  if [[ ! -f ".gitignore" ]]; then
+    echo "# Comitar config file" >> .gitignore
+    echo ".comitar.json" >> .gitignore
+    echo -e "${GREEN}✔ .gitignore criado.${NC}"
+  else
+    grep -qE '(^|/)\.comitar\.json$' .gitignore || { echo ".comitar.json" >> .gitignore; echo -e "${GREEN}✔ '.comitar.json' adicionado ao .gitignore.${NC}"; }
+  fi
+
+  # commit inicial (se houver algo)
+  git add -A
+  if ! git diff --cached --quiet; then
+    git commit -m "chore: initial commit"
+    echo -e "${GREEN}✔ Commit inicial criado.${NC}"
+  else
+    echo -e "${YELLOW}ℹ Nada para commitar no momento (repositório vazio).${NC}"
+  fi
+}
+# Garante que user.name e user.email estão definidos (repo > global)
+ensure_git_identity() {
+  local scope="--local"
+  if ! check_git_repo_silent; then scope="--global"; fi
+
+  # Pega valores efetivos (considera local e global)
+  local name email
+  name="$(git config --get user.name || true)"
+  email="$(git config --get user.email || true)"
+
+  if [[ -z "$name" ]]; then
+    read -rp "Informe seu nome para o Git (ex: Luiz Gustavo): " name
+    [[ -z "$name" ]] && { echo -e "${RED}❌ Nome não pode ser vazio.${NC}"; exit 1; }
+    git config $scope user.name "$name"
+    echo -e "${GREEN}✔ user.name configurado (${scope}).${NC}"
+  fi
+
+  if [[ -z "$email" ]]; then
+    read -rp "Informe seu e-mail do Git (ex: seu-email@dominio): " email
+    [[ -z "$email" ]] && { echo -e "${RED}❌ E-mail não pode ser vazio.${NC}"; exit 1; }
+    git config $scope user.email "$email"
+    echo -e "${GREEN}✔ user.email configurado (${scope}).${NC}"
+  fi
+}
+
+# Verifica autenticação SSH com GitHub (chave, agent e teste com ssh -T)
+ensure_github_ssh_auth() {
+  # 1) chave
+  local ssh_key=""
+  if [[ -f "$HOME/.ssh/id_ed25519" ]]; then ssh_key="$HOME/.ssh/id_ed25519"
+  elif [[ -f "$HOME/.ssh/id_rsa" ]]; then ssh_key="$HOME/.ssh/id_rsa"
+  fi
+
+  if [[ -z "$ssh_key" ]]; then
+    echo -e "${YELLOW}⚠ Nenhuma chave SSH padrão encontrada (~/.ssh/id_ed25519 ou id_rsa).${NC}"
+    if confirm_default_yes "Gerar nova chave ed25519 agora?"; then
+      read -rp "E-mail para o rótulo da chave (sugestão: $(git config user.email)): " keymail
+      [[ -z "$keymail" ]] && keymail="$(git config user.email)"
+      ssh-keygen -t ed25519 -C "$keymail"
+      ssh_key="$HOME/.ssh/id_ed25519"
+      echo -e "${GREEN}✔ Chave criada.${NC}"
+    else
+      echo -e "${RED}❌ Sem chave SSH. Configure antes de continuar.${NC}"
+      return 1
+    fi
+  fi
+
+  # 2) agent
+  if [[ -z "$SSH_AUTH_SOCK" ]]; then
+    eval "$(ssh-agent -s)" >/dev/null
+  fi
+  ssh-add "$ssh_key" >/dev/null 2>&1 || true
+
+  # 3) teste
+  echo -e "${CYAN}🔐 Testando SSH com GitHub (ssh -T git@github.com)...${NC}"
+  if ssh -T git@github.com -o StrictHostKeyChecking=accept-new 2>&1 | grep -qiE "success|authenticated|Hi "; then
+    echo -e "${GREEN}✔ Autenticação SSH com GitHub OK.${NC}"
+    return 0
+  else
+    echo -e "${YELLOW}ℹ Não foi possível autenticar via SSH agora.${NC}"
+    echo -e "   1) Adicione a sua chave pública no GitHub (Settings ▸ SSH and GPG keys):"
+    echo -e "      ${BOLD}$( [[ -f "${ssh_key}.pub" ]] && cat "${ssh_key}.pub" || echo "~/.ssh/id_ed25519.pub" )${NC}"
+    echo -e "   2) Depois, rode novamente."
+    return 1
+  fi
+}
+
+# Verifica autenticação HTTPS com GitHub (prioriza GitHub CLI)
+ensure_github_https_auth() {
+  if command -v gh >/dev/null 2>&1; then
+    if gh auth status >/dev/null 2>&1; then
+      echo -e "${GREEN}✔ GitHub CLI autenticado (HTTPS).${NC}"
+      return 0
+    else
+      echo -e "${YELLOW}ℹ GitHub CLI não autenticado.${NC}"
+      if confirm_default_yes "Fazer login com 'gh auth login' agora?"; then
+        gh auth login
+        if gh auth status >/dev/null 2>&1; then
+          echo -e "${GREEN}✔ Autenticado com gh.${NC}"; return 0
+        fi
+      fi
+    fi
+  fi
+
+  echo -e "${YELLOW}⚠ gh não disponível ou não autenticado.${NC}"
+  echo -e "   Opções:"
+  echo -e "   • Instale e use ${BOLD}GitHub CLI (gh)${NC} para login seguro"
+  echo -e "   • OU configure um ${BOLD}Personal Access Token (classic or fine-grained)${NC}"
+  echo -e "     com escopo 'repo' e um helper de credenciais (ex.: git-credential-manager-core)."
+  return 1
+}
+
+# Configura 'origin' pedindo a URL e testando acesso (ls-remote)
+configure_remote_origin() {
+  ensure_git_identity
+
+  if git config --get remote.origin.url >/dev/null 2>&1; then
+    #echo -e "${GREEN}✔ Remoto 'origin' já configurado.${NC}"
+    return 0
+  fi
+
+  if ! confirm_default_yes "Deseja configurar o remoto 'origin' agora?"; then
+    echo -e "${YELLOW}ℹ Remoto não configurado.${NC}"
+    return 0
+  fi
+
+  local input url kind
+  read -rp "Informe a URL do remoto (SSH ou HTTPS): " input
+  if [[ -z "$input" ]]; then
+    echo -e "${RED}❌ URL vazia.${NC}"; return 1
+  fi
+
+  local parsed
+  if ! parsed=$(detect_and_normalize_remote_url "$input"); then
+    return 1
+  fi
+  kind="${parsed%%|*}"
+  url="${parsed##*|}"
+
+  # Pré-checa autenticação conforme o tipo
+  if [[ "$kind" == "ssh" ]]; then
+    ensure_github_ssh_auth || true
+  else
+    ensure_github_https_auth || true
+  fi
+
+  git remote add origin "$url"
+  echo -e "${GREEN}✔ 'origin' => $url${NC}"
+
+  echo -e "${CYAN}🔎 Testando acesso ao remoto (git ls-remote)...${NC}"
+  if git ls-remote --heads origin >/dev/null 2>&1; then
+    echo -e "${GREEN}✔ Acesso ao remoto OK.${NC}"
+  else
+    echo -e "${RED}❌ Falha ao acessar o remoto.${NC}"
+    if [[ "$kind" == "ssh" ]]; then
+      echo -e "   Verifique: chave adicionada no GitHub, agent ativo e permissões da chave (~/.ssh, 600/700)."
+    else
+      echo -e "   Verifique: autenticação via gh ou helper de credenciais + token válido com escopo 'repo'."
+    fi
+    return 1
+  fi
+
+  # Se já temos commit, oferecer push -u
+  if git rev-parse HEAD >/dev/null 2>&1; then
+    local branch_current
+    branch_current="$(git branch --show-current)"
+    if confirm_default_yes "Deseja definir upstream (git push -u origin ${branch_current})?"; then
+      if git push -u origin "$branch_current"; then
+        echo -e "${GREEN}✔ Upstream configurado.${NC}"
+      else
+        echo -e "${YELLOW}⚠ Não foi possível fazer push agora.${NC}"
+      fi
+    fi
+  fi
+}
+
+
+confirm_default_yes() {
+  local prompt="$1"
+  read -rp "$prompt (S/n): " resp
+  [[ -z "$resp" || "$resp" =~ ^[sS]$ ]]
+}
+
+check_dependencies() {
+  if ! command -v jq >/dev/null 2>&1 || ! command -v git >/dev/null 2>&1; then
+    echo -e "${RED}❌ Requer o utilitário 'jq' e 'git'. Instale com: sudo apt install jq git${NC}"
+    exit 1
+  fi
+}
+
+load_config() {
+  local project_config_file="$WORK_DIR/.comitar.json"
+  local global_config_source="$COMITAR_INSTALL_ROOT/config/comitar.json"
+  local git_root=$(git rev-parse --show-toplevel)
+
+  if [[ -f "$project_config_file" ]]; then
+    CONFIG_FILE="$project_config_file"
+  elif check_git_repo_silent; then
+    project_config_file="$git_root/.comitar.json"
+
+    if [[ ! -f "$project_config_file" ]]; then
+      echo -e "${YELLOW}⚠ Arquivo de configuração local '$project_config_file' não encontrado. Copiando do padrão...${NC}"
+      cp "$global_config_source" "$project_config_file"
+      echo -e "${GREEN}✔ Arquivo de configuração copiado para '$project_config_file'.${NC}"
+    fi
+    CONFIG_FILE="$project_config_file"
+  else
+    echo -e "${RED}❌ Arquivo de configuração '$project_config_file' não encontrado e não é um repositório Git para copiar o padrão.${NC}"
+    exit 1
+  fi
+
+  if ! grep -q ".comitar.json" "$git_root/.gitignore" 2>/dev/null; then
+    echo -e "\n# Comitar config file\n.comitar.json" >> "$git_root/.gitignore"
+    echo -e "${GREEN}✔ '.comitar.json' adicionado ao .gitignore.${NC}"
+  fi
+  CHANGELOG_FILE=$(jq -r '.changelog_path' "$CONFIG_FILE")
+}
+
+check_git_repo() {
+  git rev-parse --is-inside-work-tree &>/dev/null || {
+    printf "${RED}❌ Esse diretório não é um repositório Git.${NC}\n"
+    exit 1
+  }
+}
+
+install_hook() {
+  check_git_repo
+  local hook_path=".git/hooks/commit-msg"
+  if [[ ! -f "$COMMIT_HOOK_SCRIPT" ]]; then
+      printf "${RED}❌ Arquivo de validação não encontrado:${NC} $COMMIT_HOOK_SCRIPT\n"
+      printf "Atualize o comitar com 'comitar --upgrade'\n"
+      exit 1
+  fi
+
+  if [[ ! -f "$hook_path" ]]; then
+      cp "$COMMIT_HOOK_SCRIPT" "$hook_path"
+      chmod +x "$hook_path"
+      printf "${GREEN}✔ Hook instalado com sucesso:${NC} .git/hooks/commit-msg\n"
+  fi
+}
+
+check_and_update_version() {
+  local version_control
+  version_control=$(jq -r '.version_control // false' "$CONFIG_FILE")
+  [[ "$version_control" != "true" ]] && return
+
+  local control_file
+  control_file=$(jq -r '.control_file // "VERSION"' "$CONFIG_FILE")
+  local var_name
+  var_name=$(jq -r '.var_name // ""' "$CONFIG_FILE")
+
+  if [[ ! -f "$control_file" ]]; then
+    echo -e "${RED}❌ Arquivo de versão não encontrado: $control_file${NC}"
+    return
+  fi
+
+  local current_version
+  if [[ -n "$var_name" ]]; then
+    current_version=$(grep -E "^$var_name:" "$control_file" | awk '{print $2}')
+  else
+    current_version=$(cat "$control_file" | tr -d '[:space:]')
+  fi
+
+  if [[ -z "$current_version" ]]; then
+    echo -e "${RED}❌ Não foi possível ler a versão atual do arquivo '$control_file'${NC}"
+    return
+  fi
+
+  echo -e "${CYAN}Versão atual em $control_file: $current_version${NC}"
+  read -rp "Deseja alterar a versão antes do commit? (s/n): " change_version
+  if [[ -z "$change_version" || "$change_version" =~ ^[sS]$ ]]; then
+    local version_core
+    local build
+    if [[ "$current_version" == *"+"* ]]; then
+        version_core=$(echo "$current_version" | cut -d+ -f1)
+        build=$(echo "$current_version" | cut -d+ -f2)
+    else
+        version_core="$current_version"
+        build=0
+    fi
+
+    local major minor patch
+    major=$(echo "$version_core" | cut -d. -f1)
+    minor=$(echo "$version_core" | cut -d. -f2)
+    patch=$(echo "$version_core" | cut -d. -f3)
+
+    local version_build_config
+    version_build_config=$(jq -r '.version_build // false' "$CONFIG_FILE")
+
+    echo -e "${BOLD}Escolha o tipo de alteração:${NC}"
+    echo "1. feat: Novo recurso (minor +1)"
+    echo "2. fix: Correção de bug (patch +1)"
+    echo "3. refactor: Refatoração (patch +1)"
+    echo "4. rebuild: Apenas rebuild (build +1)"
+    echo "5. ajuste manual"
+    echo "6. manter versão atual: $current_version"
+    echo "0. cancelar"
+    read -rp "Qual a alteração deseja: " choose_change
+
+    local new_version=""
+    case "$choose_change" in
+      1) minor=$((minor + 1)); patch=0; build=1 ;;
+      2|3) patch=$((patch + 1)); build=1 ;;
+      4) build=$((build + 1)) ;;
+      5)
+        read -rp "Digite a nova versão completa (ex: 1.5.3 ou 1.5.3+2): " man_new_version
+        if [[ "$man_new_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(\+[0-9]+)?$ ]]; then
+          new_version="$man_new_version"
+        else
+          echo -e "${RED}❌ Formato inválido.${NC}"
+          return
+        fi
+        ;;
+      6) new_version="$current_version" ;;
+      0) echo -e "${YELLOW}⚠️ Operação cancelada.${NC}"; return ;;
+      *) echo -e "${RED}❌ Escolha inválida.${NC}"; return ;;
+    esac
+
+    if [[ -z "$new_version" ]]; then
+        if [[ "$version_build_config" == "true" ]]; then
+            new_version="${major}.${minor}.${patch}+${build}"
+        else
+            new_version="${major}.${minor}.${patch}"
+        fi
+    fi
+
+    if [[ -n "$var_name" ]]; then
+        sed -i "s/^$var_name:.*/$var_name: ${new_version}/" "$control_file"
+    else
+        sed -i "1s/.*/$new_version/" "$control_file"
+    fi
+    echo -e "${GREEN}✔ Versão atualizada para: $new_version${NC}"
+  fi
+}
+
+
+show_default_commit_types() {
+  echo -e "${BLUE}Tipos de commit padrão:${NC}"
+  echo " 0. cancelar:  ❌"
+  mapfile -t default_options < <(jq -c '.default_types[]?' "$CONFIG_FILE")
+  for i in "${!default_options[@]}"; do
+    item="${default_options[$i]}"
+    type=$(jq -r '.type' <<< "$item")
+    emoji=$(jq -r '.emoji' <<< "$item")
+    label=$(jq -r '.label' <<< "$item")
+    printf "%2d. %-10s %s %s\n" "$((i+1))" "$type:" "$emoji" "$label"
+  done
+  echo -e "${CYAN}${BLINK}99.${NC} Mostrar tipos personalizados ⏬"
+}
+
+show_commit_menu() {
+  echo -e "${BLUE}${BOLD}Selecione o tipo de commit:${NC}"
+  echo
+  show_default_commit_types
+  echo
+  read -rp "Selecione o tipo: " type_num
+  case $type_num in
+    0 | [qQ] | [sS])
+      echo -e "${YELLOW}${BLINK} ⚠️ COMMIT Cancelado pelo usuário.${NC}"
+      exit 0
+      ;;
+    99)
+      echo -e "\n${BLUE}Tipos adicionais definidos em comitar.config:${NC}"
+      mapfile -t options < <(jq -c '.custom_types[]?' "$CONFIG_FILE")
+      for i in "${!options[@]}"; do
+        item="${options[$i]}"
+        type=$(jq -r '.type' <<< "$item")
+        emoji=$(jq -r '.emoji' <<< "$item")
+        label=$(jq -r '.label' <<< "$item")
+        printf "%2d. %-10s %s %s\n" "$((i+1+${#default_options[@]}))" "$type:" "$emoji" "$label"
+      done
+      echo
+      read -rp "Digite o número do tipo adicional: " extra_type_num
+      case "$extra_type_num" in
+        0 | [sS]| [qQ] | sair | SAIR)
+          echo -e "${YELLOW}${BLINK} ⚠️ Commit cancelado pelo usuário.${NC}"
+          exit 0
+          ;;
+        [vV] | voltar)
+          echo -e "${CYAN}↩️  Retornando ao menu principal...${NC}"
+          show_commit_menu
+          return
+          ;;
+      esac
+      offset=$((extra_type_num - ${#default_options[@]} - 1))
+      if [[ "$extra_type_num" =~ ^[0-9]+$ ]] && (( offset >= 0 && offset < ${#options[@]} )); then
+        selected="${options[$offset]}"
+      else
+        echo -e "${RED}${BLINK}❌ Tipo inválido.${NC}"
+        exit 1
+      fi
+      ;;
+    *)
+      if [[ "$type_num" =~ ^[0-9]+$ ]] && (( type_num > 0 && type_num <= ${#default_options[@]} )); then
+        selected="${default_options[$((type_num-1))]}"
+      else
+        echo -e "${RED}${BLINK}❌ Tipo inválido.${NC}"
+        exit 1
+      fi
+    ;;
+  esac
+  tipo=$(jq -r '.type' <<< "$selected")
+  emoji=$(jq -r '.emoji' <<< "$selected")
+  label=$(jq -r '.label' <<< "$selected")
+}
+
+
+get_commit_message() {
+  local use_scope_config=$(jq -r '.use_scope' "$CONFIG_FILE")
+  local scope=""
+
+  while true; do
+    echo -e " ↪️ Tipo selecionado: $tipo $emoji"
+    if [[ "$use_scope_config" == "true" ]]; then
+      read -rp "   ✏️  Digite o escopo do commit (opcional, ex: auth, ui): " scope
+    fi
+    read -rp "   ✏️  Digite a mensagem do commit: " mensagem
+    case "$mensagem" in
+      [vV] | voltar | VOLTAR)
+        echo -e "${YELLOW}↩️  Retornando ao menu de seleção de tipo...${NC}"
+        show_commit_menu
+        mensagem=""
+        get_commit_message
+        return
+        ;;
+      [sS] | sair | SAIR)
+        echo -e "${YELLOW}${BLINK}⚠️ Commit cancelado pelo usuário.${NC}"
+        exit 0
+        ;;
+      *)
+        if [[ -n "$mensagem" ]]; then
+          break
+        else
+          echo -e "${RED}⚠️ A mensagem não pode estar vazia.${NC}"
+        fi
+        ;;
+    esac
+  done
+  # Armazena o escopo para uso posterior
+  COMMIT_SCOPE="$scope"
+}
+
+generate_commit() {
+  local use_emojis_config=$(jq -r '.use_emojis' "$CONFIG_FILE")
+  local use_scope_config=$(jq -r '.use_scope' "$CONFIG_FILE")
+  local commit_prefix=""
+  local commit_scope_formatted=""
+
+  if [[ "$use_emojis_config" == "true" ]]; then
+    commit_prefix=":$emoji: "
+  fi
+
+  if [[ "$use_scope_config" == "true" ]] && [[ -n "$COMMIT_SCOPE" ]]; then
+    commit_scope_formatted="($COMMIT_SCOPE)"
+  fi
+
+  commit_final="${commit_prefix}${tipo}${commit_scope_formatted}: ${mensagem}"
+  echo -e "${BLUE}Commit final:${NC} $commit_final"
+  generate_changelog
+  [[ -n "$CHANGELOG_FILE" && -f "$CHANGELOG_FILE" ]] && git add "$CHANGELOG_FILE"
+
+  git add -A
+  if git commit -m "$commit_final"; then
+    echo -e "${GREEN}✔ Commit realizado com sucesso.${NC}"
+    ask_push
+  else
+    echo -e "${RED}❌ Falha ao realizar commit.${NC}"
+  fi
+}
+
+generate_changelog() {
+  if jq -e '.generate_changelog' "$CONFIG_FILE" | grep -q true; then
+    local user_name
+    user_name=$(git config user.name)
+    echo "- :$emoji: $tipo: $mensagem (por: $user_name em $(date +'%d-%m-%Y %H:%M'))" >> "$CHANGELOG_FILE"
+    echo -e "${GREEN}✔ Changelog atualizado em $CHANGELOG_FILE${NC}"
+  fi
+}
+
+send_tags_push() {
+  read -rp "🏷️ Deseja enviar as tags? (s/n): " confirm_send
+  if [[ -z "$confirm_send" || "$confirm_send" =~ ^[sS]$ ]]; then
+    git push --tags && printf "${GREEN}✔ Tags enviadas com sucesso.${NC}\n" || printf "${RED}❌ Falha ao enviar tags.${NC}\n"
+  fi
+}
+
+ask_tags() {
+  read -rp "🏷️ Deseja criar uma tag agora? (s/n): " confirm_tag
+  if [[ -z "$confirm_tag" || "$confirm_tag" =~ ^[sS]$ ]]; then
+    send_tags=true
+    read -rp "Digite o nome da tag desejada: " use_tag
+    git tag "$use_tag" && printf "${GREEN}✔ Tag '$use_tag' criada.\n${NC}" || printf "${RED}❌ Falha ao criar tag.\n${NC}"
+  fi
+
+  if $send_tags; then
+    send_tags_push
+  fi
+}
+
+ask_push() {
+  read -rp "⤴️ Deseja fazer push agora? (s/n): " confirm
+  if [[ -z "$confirm" || "$confirm" =~ ^[sS]$ ]]; then
+    branch_current=$(git branch --show-current)
+    if git rev-parse --abbrev-ref --symbolic-full-name @{u} >/dev/null 2>&1; then
+      git push && echo -e "${GREEN}✔ Push realizado com sucesso.${NC}"
+    else
+      git push -u origin "$branch_current" && echo -e "${GREEN}✔ Push realizado com sucesso.${NC}"
+    fi
+  else
+    echo -e "${YELLOW}⚠ Push não realizado. Execute manualmente se desejar.${NC}"
+  fi
+}
+
+show_comitar_news() {
+  local changelog_script="$COMITAR_INSTALL_ROOT/tools/changelog.sh"
+  if [[ -d "$COMITAR_INSTALL_ROOT/.git" ]]; then
+    (cd "$COMITAR_INSTALL_ROOT" && "$changelog_script")
+  else
+    echo -e "${RED}❌ Instalação do Comitar via Git não encontrada em $COMITAR_INSTALL_ROOT${NC}"
+    echo -e "${YELLOW}💡 O comando 'news' requer que o Comitar seja instalado com a versão mais recente do instalador.${NC}"
+    exit 1
+  fi
+}
+
+configure_comitar() {
+  echo -e "${BLUE}${BOLD}Configuração do Comitar${NC}"
+  echo ""
+  load_config
+
+  # Configurar uso de cores
+  current_colors=$(jq -r '.use_colors' "$CONFIG_FILE")
+  read -rp "Usar cores nas mensagens? (s/n) [atual: $([[ "$current_colors" == "true" ]] && echo "sim" || echo "não")]: " choice
+  if [[ -z "$choice" || "$choice" =~ ^[sS]$ ]]; then
+    jq '.use_colors = true' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+  elif [[ "$choice" =~ ^[nN]$ ]]; then
+    jq '.use_colors = false' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+  fi
+
+  # Configurar uso de efeito pisca
+  current_blinks=$(jq -r '.use_blinks' "$CONFIG_FILE")
+  read -rp "Usar efeito pisca nas mensagens? (s/n) [atual: $([[ "$current_blinks" == "true" ]] && echo "sim" || echo "não")]: " choice
+  if [[ -z "$choice" || "$choice" =~ ^[sS]$ ]]; then
+    jq '.use_blinks = true' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+  elif [[ -z "$choice" || "$choice" =~ ^[nN]$ ]]; then
+    jq '.use_blinks = false' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+  fi
+
+  # Configurar uso de emojis
+  current_emojis=$(jq -r '.use_emojis' "$CONFIG_FILE")
+  read -rp "Usar emojis nos commits? (s/n) [atual: $([[ "$current_emojis" == "true" ]] && echo "sim" || echo "não")]: " choice
+  if [[ -z "$choice" || "$choice" =~ ^[sS]$ ]]; then
+    jq '.use_emojis = true' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+  elif [[ "$choice" =~ ^[nN]$ ]]; then
+    jq '.use_emojis = false' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+  fi
+
+  # Configurar uso de escopo
+  current_scope=$(jq -r '.use_scope' "$CONFIG_FILE")
+  read -rp "Usar escopo nos commits (ex: feat(auth):)? (s/n) [atual: $([[ "$current_scope" == "true" ]] && echo "sim" || echo "não")]: " choice
+  if [[ -z "$choice" || "$choice" =~ ^[sS]$ ]]; then
+    jq '.use_scope = true' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+  elif [[ "$choice" =~ ^[nN]$ ]]; then
+    jq '.use_scope = false' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+  fi
+
+  # Configurar controle de versão automático
+  current_control_version=$(jq -r '.version_control // false' "$CONFIG_FILE")
+  read -rp "Controlar versão automaticamente? (s/n) [atual: $([[ "$current_control_version" == "true" ]] && echo "sim" || echo "não")]: " choice
+  if [[ -z "$choice" || "$choice" =~ ^[sS]$ ]]; then
+    jq '.version_control = true' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+
+    # Se sim, pergunta o nome do arquivo
+    current_file=$(jq -r '.control_file // "your.file"' "$CONFIG_FILE")
+    read -rp "Arquivo que contém a versão? [atual: $current_file]: " input_file
+    [[ -n "$input_file" ]] && jq --arg file "$input_file" '.control_file = $file' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+
+    # Nome da variável
+    current_var=$(jq -r '.var_name // "version"' "$CONFIG_FILE")
+    read -rp "Nome da variável de versão? [atual: $current_var]: " input_var
+    [[ -n "$input_var" ]] && jq --arg var "$input_var" '.var_name = $var' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+
+    # Flag extra: controlar build separadamente?
+    current_build=$(jq -r '.version_build // false' "$CONFIG_FILE")
+    read -rp "Controlar número de build separadamente (ex: +1)? (s/n) [atual: $([[ "$current_build" == "true" ]] && echo "sim" || echo "não")]: " input_build
+    if [[ -z "$choice" || "$input_build" =~ ^[sS]$ ]]; then
+      jq '.version_build = true' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+    elif [[ "$input_build" =~ ^[nN]$ ]]; then
+      jq '.version_build = false' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+    fi
+
+  elif [[ "$choice" =~ ^[nN]$ ]]; then
+    jq '.version_control = false' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+  fi
+
+  echo -e "${GREEN}✔ Configuração atualizada com sucesso!${NC}"
+}
+
+undo_last_commit() {
+  check_git_repo
+
+  local last_commit_hash=$(git rev-parse HEAD)
+  local last_commit_msg=$(git log -1 --pretty=format:"%s")
+
+  echo -e "${YELLOW}⚠ Último commit:${NC} $last_commit_msg"
+
+  if git status | grep -q "Your branch is ahead of"; then
+    echo -e "${BLUE}Commit ainda não enviado para o remoto.${NC}"
+    read -rp "Deseja desfazer o último commit (manter arquivos)? (s/n): " confirm
+    if [[ -z "$confirm" || "$confirm" =~ ^[sS]$ ]]; then
+      git reset --soft HEAD~1
+      echo -e "${GREEN}✔ Commit desfeito localmente (arquivos mantidos no stage).${NC}"
+    fi
+  else
+    echo -e "${RED}Commit já foi enviado para o remoto.${NC}"
+    read -rp "Deseja reverter com 'git revert'? (s/n): " confirm
+    if [[ -z "$confirm" || "$confirm" =~ ^[sS]$ ]]; then
+      git revert "$last_commit_hash"
+      echo -e "${GREEN}✔ Commit revertido com sucesso.${NC}"
+    fi
+  fi
+
+  # Verifica se existe uma tag associada ao commit
+  tag=$(git tag --contains "$last_commit_hash")
+  if [[ -n "$tag" ]]; then
+    echo -e "${YELLOW}🏷️ Tag associada encontrada: ${tag}${NC}"
+    read -rp "Deseja apagar essa tag local e remotamente? (s/n): " delete_tag
+    if [[ -z "$delete_tag" || "$delete_tag" =~ ^[sS]$ ]]; then
+      git tag -d "$tag"
+      git push origin ":refs/tags/$tag"
+      echo -e "${GREEN}✔ Tag removida local e remotamente.${NC}"
+    fi
+  fi
+}
+
+check_for_updates() {
+    # Do not check for updates if running inside a CI environment
+    if [[ -n "$CI" ]]; then
+        return
+    fi
+
+    local last_check_file="$COMITAR_INSTALL_ROOT/.last_update_check"
+    local today
+    today=$(date +%Y-%m-%d)
+
+    # Check if we already prompted today
+    if [[ -f "$last_check_file" ]] && [[ "$(cat "$last_check_file")" == "$today" ]]; then
+        return
+    fi
+
+    # Fetch remote version - timeout after 2 seconds to not slow down the user
+    local remote_version
+    remote_version=$(curl -fsSL --max-time 2 "https://raw.githubusercontent.com/ketteiGustavo/comitar/main/VERSION" 2>/dev/null || echo "")
+
+    # Write timestamp to not check again today, even if fetch fails
+    echo "$today" > "$last_check_file"
+
+    # If fetch failed or version is same, do nothing.
+    if [[ -z "$remote_version" ]] || [[ "$remote_version" == "$APP_VERSION" ]]; then
+        return
+    fi
+
+    # If we are here, there's a new version. Prompt the user.
+    echo -e "\n${YELLOW}💡 Uma nova versão do Comitar está disponível: ${GREEN}$remote_version${NC} (você tem a ${RED}$APP_VERSION${NC})"
+    read -rp "   Deseja atualizar agora? (S/n): " choice
+
+    if [[ -z "$choice" || "$choice" =~ ^[sS]$ ]]; then
+        echo -e "${CYAN}🚀 Atualizando...${NC}"
+        # Execute the upgrade script
+        "$UPGRADE_SCRIPT"
+        echo -e "\n${GREEN}✅ Comitar atualizado! Por favor, execute seu comando novamente.${NC}"
+        # Exit so the user doesn't run their original command with the old version
+        exit 0
+    fi
+}
+
+init_repo() {
+  check_dependencies
+  ensure_git_identity
+
+  # 1) Se não for repo, inicializa com branch padrão (global ou main)
+  if ! check_git_repo_silent; then
+    local default_branch
+    default_branch="$(git config --global init.defaultBranch 2>/dev/null || true)"
+    [[ -z "$default_branch" ]] && default_branch="main"
+    git init -b "$default_branch"
+    echo -e "${GREEN}✔ Git inicializado (branch: ${default_branch}).${NC}"
+  fi
+
+  # 2) Nome do projeto (pelo diretório atual)
+  local project_name
+  project_name="$(basename "$WORK_DIR")"
+
+  # 3) Cria README se não existir
+  if [[ ! -f README.md ]]; then
+    echo " # ${project_name}" >> README.md
+    echo -e "${GREEN}✔ README.md criado.${NC}"
+  else
+    echo -e "${YELLOW}ℹ README.md já existe; mantendo como está.${NC}"
+  fi
+
+  # 4) .gitignore mínimo para .comitar.json
+  if [[ ! -f ".gitignore" ]]; then
+    echo "# Comitar config file" > .gitignore
+    echo ".comitar.json" >> .gitignore
+    echo -e "${GREEN}✔ .gitignore criado.${NC}"
+  else
+    grep -qE '(^|/)\.comitar\.json$' .gitignore || { echo ".comitar.json" >> .gitignore; echo -e "${GREEN}✔ '.comitar.json' adicionado ao .gitignore.${NC}"; }
+  fi
+
+  # 5) Commit inicial se ainda não houver commits
+  if ! git rev-parse --verify HEAD >/dev/null 2>&1; then
+    git add -A
+    if ! git diff --cached --quiet; then
+      git commit -m "chore: initial commit"
+      echo -e "${GREEN}✔ Commit inicial criado.${NC}"
+    else
+      echo -e "${YELLOW}ℹ Nada para commitar no momento.${NC}"
+    fi
+  else
+    echo -e "${YELLOW}ℹ Repositório já possui histórico; não cria commit inicial.${NC}"
+  fi
+
+  # 6) Configura remoto 'origin' (se ainda não houver) e push -u
+  if ! git config --get remote.origin.url >/dev/null 2>&1; then
+    echo -e "${CYAN}🔗 Vamos configurar o remoto 'origin'.${NC}"
+    configure_remote_origin || {
+      echo -e "${YELLOW}⚠ Não foi possível configurar o remoto agora.${NC}"
+      return 0
+    }
+  else
+    echo -e "${GREEN}✔ Remoto 'origin' já configurado.${NC}"
+  fi
+
+  # 7) Push -u se upstream não estiver definido
+  local branch_current
+  branch_current="$(git branch --show-current)"
+  if ! git rev-parse --abbrev-ref --symbolic-full-name @{u} >/dev/null 2>&1; then
+    echo -e "${CYAN}⤴️  Enviando branch '${branch_current}' e definindo upstream...${NC}"
+    if git push -u origin "$branch_current"; then
+      echo -e "${GREEN}✔ Push realizado e upstream definido.${NC}"
+    else
+      echo -e "${YELLOW}⚠ Falha no push. Verifique autenticação e permissões.${NC}"
+    fi
+  else
+    echo -e "${YELLOW}ℹ Upstream já definido para '${branch_current}'.${NC}"
+  fi
+
+  # 8) Ajustes do Comitar (config e hook) – opcionais mas úteis
+  load_config
+  test_colors
+  install_hook || true
+  echo -e "${GREEN}✅ Repositório pronto!${NC}"
+}
+
+
+main() {
+  # List of commands that should not trigger the update check
+  local no_update_check_commands="--upgrade --version news --news --help -h --init init"
+  if ! echo "$no_update_check_commands" | grep -q -- "$1"; then
+      check_for_updates
+  fi
+
+  case "${1:-}" in
+    --init | init) init_repo ;;
+    --install-hook) install_hook ;;
+    --help | -h) show_help ;;
+    --version | -V) show_version ;;
+    --config | -c) configure_comitar ;;
+    --undo) undo_last_commit ;;
+    changelog|--changelog) "$CHANGELOG_SCRIPT" "${@:2}" ;;
+    --uninstall) "$UNINSTALL_SCRIPT" ;;
+    --upgrade | -up | up) "$UPGRADE_SCRIPT" ;;
+    news|--news) show_comitar_news ;;
+    --commit | "")
+      check_dependencies
+      ensure_git_repo
+      configure_remote_origin
+      load_config
+      test_colors
+      install_hook
+      show_commit_menu
+      get_commit_message
+      check_and_update_version
+      generate_commit
+      ;;
+    *)
+      printf "\n${RED}OPÇÃO '$1' DESCONHECIDA${NC}\n\n"
+      printf "${YELLOW} ℹ Nenhuma opção válida informada.${NC}\n\n"
+      show_help
+      ;;
+  esac
+}
+
+main "$@"
