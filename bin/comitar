@@ -2,7 +2,7 @@
 ################################################################################
 # comitar - Commit semântico com configuração dinâmica, changelog automático e hook integrado
 #
-# DATA: 25/07/2025 - Versao 2.0.1
+# DATA: 25/07/2025 - Versao 0.0.1
 # -------------------------------------------------------------------------------
 # Autor: Luiz Gustavo <luizg.devlx@gmail.com>
 # -------------------------------------------------------------------------------
@@ -16,8 +16,8 @@ CONFIG_FILE=".comitar.json"
 CHANGELOG_FILE=""
 INSTALL_DIR="$HOME/.local/bin"
 
-readonly APP_VERSION="2.3.0"
-readonly APP_DATE="17/09/2025"
+readonly APP_VERSION="0.0.1"
+readonly APP_DATE="21/09/2025"
 readonly SCRIPT_NAME="$(basename "$0")"
 readonly WORK_DIR="$(pwd)"
 readonly COMITAR_INSTALL_ROOT="$HOME/.comitar"
@@ -633,17 +633,40 @@ ask_tags() {
 }
 
 ask_push() {
-  read -rp "⤴️ Deseja fazer push agora? (s/n): " confirm
-  if [[ -z "$confirm" || "$confirm" =~ ^[sS]$ ]]; then
+  local default_push_config
+  default_push_config=$(jq -r '.default_push // false' "$CONFIG_FILE")
+  local ask_push_config
+  ask_push_config=$(jq -r '.ask_push // true' "$CONFIG_FILE")
+
+  # Se o push automático estiver ativado, faça o push e saia.
+  if [[ "$default_push_config" == "true" ]]; then
+    echo -e "${CYAN}🚀 Realizando push automático (configurado em .comitar.json)...${NC}"
+    local branch_current
     branch_current=$(git branch --show-current)
     if git rev-parse --abbrev-ref --symbolic-full-name @{u} >/dev/null 2>&1; then
       git push && echo -e "${GREEN}✔ Push realizado com sucesso.${NC}"
     else
       git push -u origin "$branch_current" && echo -e "${GREEN}✔ Push realizado com sucesso.${NC}"
     fi
-  else
-    echo -e "${YELLOW}⚠ Push não realizado. Execute manualmente se desejar.${NC}"
+    return
   fi
+
+  # Se o push automático estiver desativado, verifique se devemos perguntar.
+  if [[ "$ask_push_config" == "true" ]]; then
+    read -rp "⤴️ Deseja fazer push agora? (s/n): " confirm
+    if [[ -z "$confirm" || "$confirm" =~ ^[sS]$ ]]; then
+      local branch_current
+      branch_current=$(git branch --show-current)
+      if git rev-parse --abbrev-ref --symbolic-full-name @{u} >/dev/null 2>&1; then
+        git push && echo -e "${GREEN}✔ Push realizado com sucesso.${NC}"
+      else
+        git push -u origin "$branch_current" && echo -e "${GREEN}✔ Push realizado com sucesso.${NC}"
+      fi
+    else
+      echo -e "${YELLOW}⚠ Push não realizado. Execute manualmente se desejar.${NC}"
+    fi
+  fi
+  # Se ask_push_config for false, a função simplesmente termina sem fazer nada.
 }
 
 show_comitar_news() {

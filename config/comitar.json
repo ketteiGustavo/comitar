@@ -1,5 +1,6 @@
 {
-  "default_push": true,
+  "default_push": false,
+  "ask_push": true,
   "use_colors": true,
   "use_blinks": true,
   "use_emojis": true,

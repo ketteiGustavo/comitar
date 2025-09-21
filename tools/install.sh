@@ -161,7 +161,7 @@ install_man_page() {
     $QUIET || echo -e "\n${YELLOW}➡ Instalando manual...${NC}"
     if sudo -v &>/dev/null; then
         sudo mkdir -p /usr/local/man/man1
-        if sudo cp "$COMITAR_DIR/man/comitar.1" /usr/local/man/man1/comitar.1 && sudo mandb /usr/local/man &>/dev/null; then
+        if sudo cp "$COMITAR_DIR"/man/* /usr/local/man/man1/ && sudo mandb /usr/local/man &>/dev/null; then
             $QUIET || echo -e "${GREEN}✔ Manual instalado com sucesso${NC}"
         else
             $QUIET || echo -e "${RED}⚠ Falha ao instalar o manual.${NC}"

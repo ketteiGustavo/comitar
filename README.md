@@ -192,6 +192,8 @@ Esse arquivo pode ser editado à vontade para personalizar os tipos de commit, c
 
 Você pode configurar as seguintes opções no `.comitar.json` ou interativamente com `comitar --config`:
 
+-   `default_push` (boolean): Se `true`, executa `git push` automaticamente após um commit bem-sucedido. Padrão: `false`.
+-   `ask_push` (boolean): Se `default_push` for `false`, esta opção controla se o script deve perguntar ao usuário se deseja fazer o push. Padrão: `true`.
 -   `use_colors` (boolean): Define se as mensagens do terminal devem usar cores. Padrão: `true`.
 -   `use_blinks` (boolean): Define se as mensagens do terminal devem piscar. Padrão: `true`.
 -   `use_emojis` (boolean): Define se os commits devem incluir emojis. Padrão: `true`.

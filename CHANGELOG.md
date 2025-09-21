@@ -1,0 +1,1 @@
+- :✨: feat: autopush melhorado, para fazer envio automatico se ativo. (por: Luiz Cesar em 21-09-2025 09:10)

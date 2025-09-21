@@ -1,5 +1,5 @@
-.\" NÃO MODIFICAR ESSE ARQUIVO MANUALMENTE
-.TH COMITAR "1" "Julho de 2025" "Versao 2.0.1" "Manual do Usuario"
+." NÃO MODIFICAR ESSE ARQUIVO MANUALMENTE
+.TH COMITAR "1" "Setembro de 2025" "Versao 0.0.1" "Manual do Usuario"
 .SH NOME
 comitar \- Script de commits semânticos com emojis, validações e changelog.
 .SH SINOPSE
@@ -7,22 +7,27 @@ comitar \- Script de commits semânticos com emojis, validações e changelog.
 [\fIOPCAO\fR]...
 .br
 .SH RESUMO
-Facilita e padroniza o uso de mensagens de commit no Git, com suporte a emojis, convenções semânticas, geração automática de changelog e configurações personalizadas via arquivo local.
+Facilita e padroniza o uso de mensagens de commit no Git, com suporte a emojis, convenções semânticas, geração automática de changelog, inicialização de repositórios e configurações personalizadas.
 .SH DESCRICAO
 .PP
 O script \fBcomitar\fR foi criado para promover boas práticas no uso de mensagens de commit, seguindo o padrão \fIConventional Commits\fR.
 Ele inclui:
 .IP \[bu] 2
-Lista de tipos de commit com emojis personalizados
+Inicialização rápida de repositórios Git.
 .IP \[bu]
-Validação da mensagem antes do envio
+Lista de tipos de commit com emojis personalizados.
 .IP \[bu]
-Geração automática de changelog
+Validação da mensagem de commit através de hook.
 .IP \[bu]
-Criação de tags por tipo
+Geração automática de changelog.
 .IP \[bu]
-Suporte a configurações locais com \fBcomitar.json\fR
+Criação de tags por tipo.
+.IP \[bu]
+Suporte a configurações locais com \fB.comitar.json\fR.
 .SH OPCOES
+.TP
+\fB--commit\fR
+Inicia o processo interativo para criação de um commit semântico. Esta é a ação padrão se nenhuma opção for fornecida.
 .TP
 \fB-h\fR, \fB--help\fR
 Exibe a tela de ajuda com as opções disponíveis.
@@ -30,31 +35,38 @@ Exibe a tela de ajuda com as opções disponíveis.
 \fB-V\fR, \fB--version\fR
 Exibe a versão atual do script comitar.
 .TP
-\fB--commit\fR
-Inicia o processo interativo para criação de um commit semântico.
+\fB-c\fR, \fB--config\fR
+Abre o menu interativo de configurações do comitar.
 .TP
-\fB--config\fR, \fB-c\fR
-Abre o menu interativo de configurações.
+\fB--init\fR
+Inicializa um repositório Git no diretório atual: cria o repo, um README.md, configura o .gitignore, cria um commit inicial e oferece a configuração do repositório remoto.
 .TP
 \fB--install-hook\fR
-Instala o hook de validação de mensagens no repositório atual.
+Instala o hook de validação de mensagens (commit-msg) no repositório Git atual.
 .TP
 \fB--undo\fR
-Desfaz o último commit (mesmo que já tenha sido enviado com \fIgit push\fR).
+Desfaz o último commit. Se o commit ainda não foi enviado ao repositório remoto, ele será desfeito localmente (reset --soft). Se já foi enviado, será revertido (revert).
 .TP
 \fB--changelog\fR
-Gera o changelog com base no histórico de commits.
+Gera ou atualiza o arquivo de changelog com base no histórico de commits.
 .TP
-\fB--upgrade\fR
-Atualiza os arquivos do Comitar para a versão mais recente.
+\fB--news\fR
+Mostra as últimas atualizações e novidades do próprio comitar.
+.TP
+\fB--upgrade\fR, \fBup\fR
+Atualiza os arquivos do Comitar para a versão mais recente a partir do repositório oficial.
 .TP
 \fB--uninstall\fR
-Remove completamente o Comitar e seus arquivos relacionados.
+Remove completamente o Comitar e seus arquivos relacionados do sistema.
 .SH EXEMPLOS
 .PP
-Criar um commit com tipo \fBfeat\fR e emoji correspondente:
+Criar um commit de forma interativa:
 .IP
 \f(CW$ comitar\fR
+.PP
+Inicializar um novo projeto:
+.IP
+\f(CW$ comitar --init\fR
 .PP
 Exibir ajuda:
 .IP
@@ -64,15 +76,13 @@ Verificar a versão:
 .IP
 \f(CW$ comitar -V\fR
 .PP
-Abrir menu de configurações:
-.IP
-\f(CW$ comitar --config\fR
-.PP
 Instalar o hook de commit-msg:
 .IP
 \f(CW$ comitar --install-hook\fR
+.SH ALIAS
+Se você usa um alias como 'cmt' para 'comitar', o manual também pode ser acessado com 'man cmt' após a instalação correta.
 .SH REQUISITOS
-Git, Bash 4+, permissão de execução, ambiente Unix-like, jq.
+Git, Bash 4+, jq, curl, permissão de execução e um ambiente Unix-like.
 .SH LICENCA
 Este projeto é software livre e está licenciado sob a \fBGNU General Public License v3.0\fR.
 Veja o arquivo LICENSE para mais detalhes.
