@@ -201,9 +201,9 @@ Você pode configurar as seguintes opções no `.comitar.json` ou interativament
 -   `use_scope` (boolean): Define se o prompt de commit deve perguntar por um escopo (ex: `feat(auth):`). Padrão: `false`.
 -   `version_control` (boolean): Define se o irá controlar a versão do código. Padrão: `false`.
 -   `control_file` (file): Define qual o nome do arquivo que terá o controle de versão. (ex. `Pubspec.yaml`)
--   `var_name` (variable): Variavél que será apontada para ser alterada caso o `version_control` estiver como `true`.
+-   `var_name` (variable): Variável que será apontada para ser alterada caso o `version_control` estiver como `true`.
 -   `version_build` (boolean): Define se builds de seus projetos alteram a versão. Padrão: `false`.
--   `default_types` (variable): Padrão de tipos pre-definidos para o `Comitar`.
+-   `default_types` (variable): Padrão de tipos pré-definidos para o `Comitar`.
 -   `custom_types` (variable): Tipos customizados para seus projetos.
 
 ---
@@ -294,15 +294,26 @@ Para utilizar o Comitar, após ter instalado, siga o passo-a-passo abaixo:
 .comitar/
 ├── bin/
 │   └── comitar
-├── assets
-│   └── images
+├── assets/
+│   └── images/
+│       ├── comitar001.png
+│       ├── comitar002.png
+│       ├── comitar003.png
+│       ├── comitar004.png
+│       ├── comitar005.png
 │       └── comitar_capa.png
+├── docs/
+│   ├── extensoes-vscode.md
+│   ├── guia-git.md
+│   ├── guia-markdown.md
+│   └── LICENCE
 ├── config/
 │   └── comitar.json
 ├── hooks/
 │   └── commit-check
 ├── man/
-│   └── comitar.1
+│   ├── cmt.1 -> /home/luiz/workspaces/comitar/man/comitar.1
+│   └── comitar.1
 ├── tests/
 │   └── test.sh
 ├── tools/
@@ -312,11 +323,16 @@ Para utilizar o Comitar, após ter instalado, siga o passo-a-passo abaixo:
 │   ├── uninstall.sh
 │   └── upgrade.sh
 ├── .gitignore
-├── changelog.md
-├── LICENSE
+├── comitar.drawio
+├── CHANGELOG.md
+├── CODE_OF_CONDUCT.md
 ├── CONTRIBUTING.md
+├── LICENSE
 ├── README.md
-└── run_tests.sh
+├── run_tests.sh
+├── SECURITY.md
+└── VERSION
+
 ```
 
 ---
