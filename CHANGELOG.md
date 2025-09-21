@@ -4,3 +4,4 @@
 - :✨: feat: uso de diff para atualizar paginas de manuais somente se necessário (por: Luiz Cesar em 21-09-2025 09:36)
 - :✨: feat: novos argumentos para o autocomplete (por: Luiz Cesar em 21-09-2025 09:39)
 - :🔧: chore: nova versão liberada para produção (por: Luiz Cesar em 21-09-2025 09:41)
+- :📦: build: arquivo VERSION atualizado (por: Luiz Cesar em 21-09-2025 09:49)
