@@ -160,11 +160,31 @@ set_permissions() {
 install_man_page() {
     $QUIET || echo -e "\n${YELLOW}➡ Instalando manual...${NC}"
     if sudo -v &>/dev/null; then
-        sudo mkdir -p /usr/local/man/man1
-        if sudo cp "$COMITAR_DIR"/man/* /usr/local/man/man1/ && sudo mandb /usr/local/man &>/dev/null; then
-            $QUIET || echo -e "${GREEN}✔ Manual instalado com sucesso${NC}"
+        local MAN_SOURCE_DIR="$COMITAR_DIR/man"
+        local MAN_DEST_DIR="/usr/local/man/man1"
+        local needs_update=false
+
+        sudo mkdir -p "$MAN_DEST_DIR"
+
+        # Verifica se o manual principal precisa ser atualizado ou não existe
+        if ! sudo diff -q "$MAN_SOURCE_DIR/comitar.1" "$MAN_DEST_DIR/comitar.1" >/dev/null 2>&1; then
+            needs_update=true
+        fi
+
+        # Verifica se o link simbólico para 'cmt' não existe
+        if [ ! -e "$MAN_DEST_DIR/cmt.1" ]; then
+            needs_update=true
+        fi
+
+        if [[ "$needs_update" == true ]]; then
+            $QUIET || echo -e "${CYAN}   Atualizando arquivos de manual...${NC}"
+            if sudo cp "$MAN_SOURCE_DIR"/* "$MAN_DEST_DIR/" && sudo mandb &>/dev/null; then
+                $QUIET || echo -e "${GREEN}✔ Manual instalado com sucesso${NC}"
+            else
+                $QUIET || echo -e "${RED}⚠ Falha ao instalar o manual.${NC}"
+            fi
         else
-            $QUIET || echo -e "${RED}⚠ Falha ao instalar o manual.${NC}"
+            $QUIET || echo -e "${GREEN}✔ Manual já está atualizado.${NC}"
         fi
     else
       $QUIET || echo -e "${YELLOW}⚠ Não foi possível instalar o manual (sem permissão de sudo).${NC}"

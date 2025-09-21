@@ -78,16 +78,34 @@ echo "➡ Sincronizando com o repositório oficial..."
   git reset --hard origin/main &>/dev/null
 )
 
-echo -e "\n${YELLOW}➡ Atualizando manual...${NC}"
+echo -e "\n${YELLOW}➡ Verificando manual...${NC}"
 if sudo -v &>/dev/null; then
-    sudo mkdir -p /usr/local/man/man1
-    if sudo cp "$COMITAR_DIR/man/comitar.1" /usr/local/man/man1/comitar.1 && sudo mandb /usr/local/man &>/dev/null; then
-        echo -e "${GREEN}✔ Manual atualizado com sucesso${NC}"
+    local MAN_SOURCE_DIR="$COMITAR_DIR/man"
+    local MAN_DEST_DIR="/usr/local/man/man1"
+    local needs_update=false
+
+    sudo mkdir -p "$MAN_DEST_DIR"
+
+    if ! sudo diff -q "$MAN_SOURCE_DIR/comitar.1" "$MAN_DEST_DIR/comitar.1" >/dev/null 2>&1; then
+        needs_update=true
+    fi
+
+    if [ ! -e "$MAN_DEST_DIR/cmt.1" ]; then
+        needs_update=true
+    fi
+
+    if [[ "$needs_update" == true ]]; then
+        echo -e "${CYAN}   Atualizando arquivos de manual...${NC}"
+        if sudo cp "$MAN_SOURCE_DIR"/* "$MAN_DEST_DIR/" && sudo mandb &>/dev/null; then
+            echo -e "${GREEN}✔ Manual atualizado com sucesso${NC}"
+        else
+            echo -e "${RED}⚠ Falha ao atualizar o manual.${NC}"
+        fi
     else
-        echo -e "${RED}⚠ Falha ao atualizar o manual.${NC}"
+        echo -e "${GREEN}✔ Manual já está atualizado.${NC}"
     fi
 else
-    echo -e "${YELLOW}⚠ Não foi possível atualizar o manual (sem permissão de sudo).${NC}"
+    echo -e "${YELLOW}⚠ Não foi possível verificar o manual (sem permissão de sudo).${NC}"
 fi
 
 detect_shell

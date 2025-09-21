@@ -9,7 +9,7 @@ set -e
 COMITAR_DIR="$HOME/.comitar"
 BIN_TARGET="$HOME/.local/bin/comitar"
 SHELL_RC=""
-MANPAGE_PATH="/usr/local/man/man1/comitar.1"
+MANPAGE_PATHS=("/usr/local/man/man1/comitar.1" "/usr/local/man/man1/cmt.1")
 
 # Cores
 RED="\e[31m"
@@ -52,9 +52,9 @@ remove_files() {
     echo -e "${GREEN}✔ Binário $BIN_TARGET removido.${NC}"
   fi
 
-  if [[ -f "$MANPAGE_PATH" ]]; then
-    sudo rm -f "$MANPAGE_PATH" && sudo mandb /usr/local/man &>/dev/null
-    echo -e "${GREEN}✔ Manual removido de $MANPAGE_PATH${NC}"
+  if [[ -f "${MANPAGE_PATHS[0]}" ]]; then
+    sudo rm -f "${MANPAGE_PATHS[@]}" && sudo mandb /usr/local/man &>/dev/null
+    echo -e "${GREEN}✔ Manuais removidos de /usr/local/man/man1/${NC}"
   fi
 }
 
