@@ -7,3 +7,4 @@
 - :📦: build: arquivo VERSION atualizado (por: Luiz Cesar em 21-09-2025 09:49)
 - :📚: docs: revisão ortográfica e organização no README (por: Luiz Cesar em 21-09-2025 10:22)
 - :🔧: chore: limpeza de declaração 'local' em upgrade.sh (por: Luiz Cesar em 21-09-2025 10:26)
+- :⚡: perf: atualizado versão produção (por: Luiz Cesar em 21-09-2025 10:29)
