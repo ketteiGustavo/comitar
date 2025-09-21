@@ -2,3 +2,4 @@
 - :✨: feat: opção para inserir corpo(mensagem longa) ao commit (por: Luiz Cesar em 21-09-2025 09:19)
 - :🐛: fix: corrigido bug que não atualizava as novas chaves do .comitar.json (por: Luiz Cesar em 21-09-2025 09:29)
 - :✨: feat: uso de diff para atualizar paginas de manuais somente se necessário (por: Luiz Cesar em 21-09-2025 09:36)
+- :✨: feat: novos argumentos para o autocomplete (por: Luiz Cesar em 21-09-2025 09:39)

@@ -7,10 +7,13 @@ _comitar_autocomplete() {
   cur="${COMP_WORDS[COMP_CWORD]}"
   prev="${COMP_WORDS[COMP_CWORD-1]}"
 
-  opts="--help --version --install-hook --commit --upgrade --uninstall --changelog"
+  # Lista completa de opções e aliases
+  opts="--help -h --version -V --init init --install-hook --commit --changelog changelog --upgrade up -up --uninstall --news news --config -c --undo"
 
   COMPREPLY=( $(compgen -W "${opts}" -- "$cur") )
   return 0
 }
 
+# Registra a função de autocomplete para 'comitar' e seu alias 'cmt'
 complete -F _comitar_autocomplete comitar
+complete -F _comitar_autocomplete cmt
