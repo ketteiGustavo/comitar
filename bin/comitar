@@ -323,31 +323,59 @@ check_dependencies() {
   fi
 }
 
+migrate_config() {
+  local local_config="$1"
+  local global_config="$2"
+
+  if [[ ! -f "$global_config" ]]; then
+    # Não é possível migrar se a fonte da verdade estiver faltando
+    return
+  fi
+
+  # Mescla a configuração global com a local. As chaves da configuração local têm precedência.
+  local merged_json
+  merged_json=$(jq -s '.[1] + .[0]' "$local_config" "$global_config")
+
+  # Sobrescreve a configuração local com a versão mesclada e atualizada
+  echo "$merged_json" > "$local_config"
+}
+
 load_config() {
   local project_config_file="$WORK_DIR/.comitar.json"
   local global_config_source="$COMITAR_INSTALL_ROOT/config/comitar.json"
-  local git_root=$(git rev-parse --show-toplevel)
+  local git_root
 
+  # Determina o caminho do arquivo de configuração, preferindo a raiz do git, se disponível
+  if check_git_repo_silent; then
+    git_root=$(git rev-parse --show-toplevel)
+    project_config_file="$git_root/.comitar.json"
+  fi
+
+  # Se um arquivo de configuração existir no caminho determinado, use-o e migre-o.
   if [[ -f "$project_config_file" ]]; then
     CONFIG_FILE="$project_config_file"
+    migrate_config "$CONFIG_FILE" "$global_config_source"
+  # Se não houver arquivo de configuração, mas estivermos em um repositório git, crie um a partir do modelo.
   elif check_git_repo_silent; then
-    project_config_file="$git_root/.comitar.json"
-
-    if [[ ! -f "$project_config_file" ]]; then
-      echo -e "${YELLOW}⚠ Arquivo de configuração local '$project_config_file' não encontrado. Copiando do padrão...${NC}"
-      cp "$global_config_source" "$project_config_file"
-      echo -e "${GREEN}✔ Arquivo de configuração copiado para '$project_config_file'.${NC}"
-    fi
+    echo -e "${YELLOW}⚠ Arquivo de configuração local '$project_config_file' não encontrado. Copiando do padrão...${NC}"
+    cp "$global_config_source" "$project_config_file"
+    echo -e "${GREEN}✔ Arquivo de configuração copiado para '$project_config_file'.${NC}"
     CONFIG_FILE="$project_config_file"
   else
-    echo -e "${RED}❌ Arquivo de configuração '$project_config_file' não encontrado e não é um repositório Git para copiar o padrão.${NC}"
+    # Não está em um repositório git e nenhum .comitar.json no diretório atual.
+    echo -e "${RED}❌ Arquivo de configuração '.comitar.json' não encontrado.${NC}"
+    echo -e "${YELLOW}💡 Execute 'comitar' dentro de um repositório Git para criar um automaticamente.${NC}"
     exit 1
   fi
 
-  if ! grep -q ".comitar.json" "$git_root/.gitignore" 2>/dev/null; then
-    echo -e "\n# Comitar config file\n.comitar.json" >> "$git_root/.gitignore"
-    echo -e "${GREEN}✔ '.comitar.json' adicionado ao .gitignore.${NC}"
+  # Garante que .comitar.json esteja no .gitignore se estiver em um repositório git
+  if check_git_repo_silent; then
+    if ! grep -q ".comitar.json" "$git_root/.gitignore" 2>/dev/null; then
+      echo -e "\n# Comitar config file\n.comitar.json" >> "$git_root/.gitignore"
+      echo -e "${GREEN}✔ '.comitar.json' adicionado ao .gitignore.${NC}"
+    fi
   fi
+
   CHANGELOG_FILE=$(jq -r '.changelog_path' "$CONFIG_FILE")
 }
 

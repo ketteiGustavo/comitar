@@ -1,2 +1,3 @@
 - :✨: feat: autopush melhorado, para fazer envio automatico se ativo. (por: Luiz Cesar em 21-09-2025 09:10)
 - :✨: feat: opção para inserir corpo(mensagem longa) ao commit (por: Luiz Cesar em 21-09-2025 09:19)
+- :🐛: fix: corrigido bug que não atualizava as novas chaves do .comitar.json (por: Luiz Cesar em 21-09-2025 09:29)
