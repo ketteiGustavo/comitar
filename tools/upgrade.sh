@@ -80,9 +80,9 @@ echo "➡ Sincronizando com o repositório oficial..."
 
 echo -e "\n${YELLOW}➡ Verificando manual...${NC}"
 if sudo -v &>/dev/null; then
-    local MAN_SOURCE_DIR="$COMITAR_DIR/man"
-    local MAN_DEST_DIR="/usr/local/man/man1"
-    local needs_update=false
+    MAN_SOURCE_DIR="$COMITAR_DIR/man"
+    MAN_DEST_DIR="/usr/local/man/man1"
+    needs_update=false
 
     sudo mkdir -p "$MAN_DEST_DIR"
 
