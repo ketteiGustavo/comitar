@@ -2,7 +2,7 @@
 ################################################################################
 # comitar - Commit semântico com configuração dinâmica, changelog automático e hook integrado
 #
-# DATA: 25/07/2025 - Versao 0.0.2c
+# DATA: 25/07/2025 - Versao 0.0.3
 # -------------------------------------------------------------------------------
 # Autor: Luiz Gustavo <luizg.devlx@gmail.com>
 # -------------------------------------------------------------------------------
@@ -16,7 +16,7 @@ CONFIG_FILE=".comitar.json"
 CHANGELOG_FILE=""
 INSTALL_DIR="$HOME/.local/bin"
 
-readonly APP_VERSION="0.0.2c"
+readonly APP_VERSION="0.0.3"
 readonly APP_DATE="21/09/2025"
 readonly SCRIPT_NAME="$(basename "$0")"
 readonly WORK_DIR="$(pwd)"
