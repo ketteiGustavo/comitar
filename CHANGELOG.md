@@ -9,3 +9,4 @@
 - :🔧: chore: limpeza de declaração 'local' em upgrade.sh (por: Luiz Cesar em 21-09-2025 10:26)
 - :⚡: perf: atualizado versão produção (por: Luiz Cesar em 21-09-2025 10:29)
 - :🐛: fix: melhoria em controle de versão e arquivo/variáveis (por: Luiz Cesar em 21-09-2025 15:42)
+- :✨: feat: recurso de uso de tags ativo no script (por: Luiz Gustavo em 21-09-2025 16:14)

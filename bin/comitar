@@ -459,6 +459,15 @@ check_and_update_version() {
     minor=$(echo "$version_core" | cut -d. -f2)
     patch=$(echo "$version_core" | cut -d. -f3)
 
+    # Sanitize version parts to allow only integers for arithmetic operations
+    major=${major//[^0-9]/}
+    minor=${minor//[^0-9]/}
+    patch=${patch//[^0-9]/}
+
+    major=${major:-0}
+    minor=${minor:-0}
+    patch=${patch:-0}
+
     local version_build_config
     version_build_config=$(jq -r '.version_build // false' "$CONFIG_FILE")
 
@@ -683,6 +692,7 @@ generate_commit() {
 
   if git commit "${commit_args[@]}"; then
     echo -e "${GREEN}✔ Commit realizado com sucesso.${NC}"
+    ask_tags
     ask_push
   else
     echo -e "${RED}❌ Falha ao realizar commit.${NC}"
@@ -706,15 +716,28 @@ send_tags_push() {
 }
 
 ask_tags() {
+  local control_tag
+  local send_tags=false
+
+  control_tag=$(jq -r '.control_tag // false' "$CONFIG_FILE")
+  [[ "$control_tag" != "true" ]] && return
+
   read -rp "🏷️ Deseja criar uma tag agora? (s/n): " confirm_tag
   if [[ -z "$confirm_tag" || "$confirm_tag" =~ ^[sS]$ ]]; then
     send_tags=true
     read -rp "Digite o nome da tag desejada: " use_tag
     git tag "$use_tag" && printf "${GREEN}✔ Tag '$use_tag' criada.\n${NC}" || printf "${RED}❌ Falha ao criar tag.\n${NC}"
+    if [[ -z "$use_tag" ]]; then
+      echo -e "${RED}❌ Nome da tag não pode ser vazio.${NC}"
+      return
+    fi
   fi
 
   if $send_tags; then
     send_tags_push
+  else
+    printf "${RED}❌ Falha ao criar tag (talvez '$use_tag' já exista?).\n${NC}"
+    return
   fi
 }
 
@@ -805,6 +828,15 @@ configure_comitar() {
     jq '.use_scope = true' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
   elif [[ "$choice" =~ ^[nN]$ ]]; then
     jq '.use_scope = false' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+  fi
+
+  # Configurar controle de tags
+  current_control_tag=$(jq -r '.control_tag // false' "$CONFIG_FILE")
+  read -rp "Controlar tags automaticamente após o commit? (s/n) [atual: $([[ "$current_control_tag" == "true" ]] && echo "sim" || echo "não")]: " choice
+  if [[ -z "$choice" || "$choice" =~ ^[sS]$ ]]; then
+    jq '.control_tag = true' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+  elif [[ "$choice" =~ ^[nN]$ ]]; then
+    jq '.control_tag = false' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
   fi
 
   # Configurar controle de versão automático

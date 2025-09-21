@@ -6,6 +6,7 @@
   "use_blinks": true,
   "use_emojis": true,
   "use_scope": false,
+  "control_tag": false,
   "version_control": false,
   "version_targets": [],
   "version_build": false,

@@ -199,10 +199,12 @@ Você pode configurar as seguintes opções no `.comitar.json` ou interativament
 -   `use_blinks` (boolean): Define se as mensagens do terminal devem piscar. Padrão: `true`.
 -   `use_emojis` (boolean): Define se os commits devem incluir emojis. Padrão: `true`.
 -   `use_scope` (boolean): Define se o prompt de commit deve perguntar por um escopo (ex: `feat(auth):`). Padrão: `false`.
--   `version_control` (boolean): Define se o irá controlar a versão do código. Padrão: `false`.
--   `control_file` (file): Define qual o nome do arquivo que terá o controle de versão. (ex. `Pubspec.yaml`)
--   `var_name` (variable): Variável que será apontada para ser alterada caso o `version_control` estiver como `true`.
--   `version_build` (boolean): Define se builds de seus projetos alteram a versão. Padrão: `false`.
+-   `version_control` (boolean): Ativa o controle de versão automático antes do commit. Padrão: `false`.
+-   `version_targets` (array): Lista de arquivos e variáveis a serem atualizados com a nova versão. O primeiro da lista é a fonte da verdade.
+    - `file` (string): Caminho para o arquivo (ex: `VERSION` ou `package.json`).
+    - `var_name` (string): Nome da variável no arquivo (ex: `APP_VERSION`). Se vazio, a primeira linha do arquivo é substituída.
+-   `version_build` (boolean): Define se o número de build deve ser incrementado e adicionado à versão (ex: `1.2.3+1`). Padrão: `false`.
+-   `control_tag` (boolean): Se `true`, o script irá sugerir e criar uma tag Git (ex: `v1.2.3`) após um commit bem-sucedido. Padrão: `false`.
 -   `default_types` (variable): Padrão de tipos pré-definidos para o `Comitar`.
 -   `custom_types` (variable): Tipos customizados para seus projetos.
 
