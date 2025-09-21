@@ -2,12 +2,12 @@
 ################################################################################
 # comitar - Commit semântico com configuração dinâmica, changelog automático e hook integrado
 #
-# DATA: 25/07/2025 - Versao 0.0.1
+# DATA: 25/07/2025 - Versao 0.0.2
 # -------------------------------------------------------------------------------
 # Autor: Luiz Gustavo <luizg.devlx@gmail.com>
 # -------------------------------------------------------------------------------
 # Controle de Versão:
-##  - Consultar changelog.md do projeto
+##  - Consultar CHANGELOG.md do projeto
 ################################################################################
 
 set -e
@@ -16,7 +16,7 @@ CONFIG_FILE=".comitar.json"
 CHANGELOG_FILE=""
 INSTALL_DIR="$HOME/.local/bin"
 
-readonly APP_VERSION="0.0.1"
+readonly APP_VERSION="0.0.2"
 readonly APP_DATE="21/09/2025"
 readonly SCRIPT_NAME="$(basename "$0")"
 readonly WORK_DIR="$(pwd)"
@@ -640,7 +640,7 @@ generate_commit() {
   if [[ -n "$COMMIT_BODY" ]]; then
     echo -e "${BLUE}Corpo:${NC}\n$COMMIT_BODY"
   fi
-  
+
   generate_changelog
   [[ -n "$CHANGELOG_FILE" && -f "$CHANGELOG_FILE" ]] && git add "$CHANGELOG_FILE"
 
