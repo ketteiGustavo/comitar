@@ -27,6 +27,9 @@ readonly CHANGELOG_SCRIPT="$TOOLS_DIR/changelog.sh"
 readonly UNINSTALL_SCRIPT="$TOOLS_DIR/uninstall.sh"
 readonly UPGRADE_SCRIPT="$TOOLS_DIR/upgrade.sh"
 
+# variavel para controlar arquivos adicionados
+SELECTED_FILES=()
+
 check_git_repo_silent() {
   git rev-parse --is-inside-work-tree &>/dev/null
 }
@@ -357,7 +360,7 @@ load_config() {
   # Se um arquivo de configuração existir no caminho determinado, use-o e migre-o.
   if [[ -f "$project_config_file" ]]; then
     CONFIG_FILE="$project_config_file"
-    migrate_config "$CONFIG_FILE" "$global_config_source"
+    # migrate_config "$CONFIG_FILE" "$global_config_source"
   # Se não houver arquivo de configuração, mas estivermos em um repositório git, crie um a partir do modelo.
   elif check_git_repo_silent; then
     echo -e "${YELLOW}⚠ Arquivo de configuração local '$project_config_file' não encontrado. Copiando do padrão...${NC}"
