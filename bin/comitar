@@ -16,7 +16,7 @@ CONFIG_FILE=".comitar.json"
 CHANGELOG_FILE=""
 INSTALL_DIR="$HOME/.local/bin"
 
-readonly APP_VERSION="0.1.1"
+readonly APP_VERSION="0.1.2"
 readonly APP_DATE="26/09/2025"
 readonly SCRIPT_NAME="$(basename "$0")"
 readonly WORK_DIR="$(pwd)"
@@ -328,14 +328,17 @@ migrate_config() {
   local global_config="$2"
 
   if [[ ! -f "$global_config" ]]; then
+    # Não é possível migrar se a fonte da verdade estiver faltando
     return
   fi
 
+  # Mescla a configuração global com a local. As chaves da configuração local têm precedência.
   local merged_json
-  merged_json=$(jq -s '_.[1] + .[0]' "$local_config" "$global_config" 2>/dev/null)
-  local jq_exit_code=$?
+  # A adição do '|| true' previne que o script pare caso o jq falhe (importante por causa do 'set -e')
+  merged_json=$(jq -s '.[1] + .[0]' "$local_config" "$global_config" 2>/dev/null) || true
 
-  if [[ $jq_exit_code -eq 0 && -n "$merged_json" ]]; then
+  # Apenas sobrescreve se o jq teve sucesso (saída não vazia)
+  if [[ -n "$merged_json" ]]; then
     echo "$merged_json" > "$local_config"
   fi
 }
