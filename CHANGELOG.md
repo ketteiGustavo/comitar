@@ -11,3 +11,4 @@
 - :🐛: fix: melhoria em controle de versão e arquivo/variáveis (por: Luiz Cesar em 21-09-2025 15:42)
 - :✨: feat: recurso de uso de tags ativo no script (por: Luiz Gustavo em 21-09-2025 16:14)
 - :📦: build: nova versão (por: Luiz Gustavo em 21-09-2025 16:15)
+- :✨: feat: inserido chave e função para controlar arquivos adicionados (por: Luiz Gustavo em 26-09-2025 21:21)

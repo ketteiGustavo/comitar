@@ -199,6 +199,7 @@ Você pode configurar as seguintes opções no `.comitar.json` ou interativament
 -   `use_blinks` (boolean): Define se as mensagens do terminal devem piscar. Padrão: `true`.
 -   `use_emojis` (boolean): Define se os commits devem incluir emojis. Padrão: `true`.
 -   `use_scope` (boolean): Define se o prompt de commit deve perguntar por um escopo (ex: `feat(auth):`). Padrão: `false`.
+-   `add_all_files` (boolean): Se `true`, executa `git add -A` para adicionar todos os arquivos automaticamente. Se `false`, exibe uma lista interativa para selecionar quais arquivos incluir no commit. Padrão: `true`.
 -   `version_control` (boolean): Ativa o controle de versão automático antes do commit. Padrão: `false`.
 -   `version_targets` (array): Lista de arquivos e variáveis a serem atualizados com a nova versão. O primeiro da lista é a fonte da verdade.
     - `file` (string): Caminho para o arquivo (ex: `VERSION` ou `package.json`).

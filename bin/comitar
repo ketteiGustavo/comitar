@@ -659,6 +659,72 @@ get_commit_message() {
   fi
 }
 
+interactive_add() {
+    echo -e "${BLUE}${BOLD}Selecione os arquivos para adicionar ao commit:${NC}"
+
+    local files_to_add=()
+    local display_lines=()
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        display_lines+=("$line")
+        # Handle renames like 'R  old -> new'
+        if [[ "$line" =~ "^R[[:space:]]+.*[[:space:]]->[[:space:]]" ]]; then
+            # Extract the 'new' part
+            files_to_add+=("$(echo "$line" | sed 's/.* -> //')")
+        else
+            # For other statuses, just get the path after the status chars
+            files_to_add+=("$(echo "$line" | cut -c4-)")
+        fi
+    done < <(git status --porcelain)
+
+    if [ ${#files_to_add[@]} -eq 0 ]; then
+        echo -e "${YELLOW}Nenhum arquivo alterado para commitar.${NC}"
+        return
+    fi
+
+    for i in "${!display_lines[@]}"; do
+        printf "%2d. %s\n" "$((i+1))" "${display_lines[$i]}"
+    done
+    echo ""
+    echo -e "Digite os números dos arquivos separados por espaço (ex: 1 3 4)."
+    echo -e "Ou digite 'a' para adicionar todos, 'q' para cancelar."
+    read -rp "Arquivos para adicionar: " selection
+
+    if [[ "$selection" =~ ^[aA]$ ]]; then
+        git add -A
+        echo -e "${GREEN}✔ Todos os arquivos alterados foram adicionados.${NC}"
+        return
+    fi
+
+    if [[ "$selection" =~ ^[qQ]$ ]]; then
+        echo -e "${YELLOW}⚠️ Nenhum arquivo adicionado. Commit cancelado.${NC}"
+        exit 1
+    fi
+
+    local added_count=0
+    for num in $selection; do
+        if [[ "$num" =~ ^[0-9]+$ ]]; then
+            local index=$((num-1))
+            if [[ $index -ge 0 && $index -lt ${#files_to_add[@]} ]]; then
+                git add "${files_to_add[$index]}"
+                echo -e "${GREEN}  -> Adicionado: ${files_to_add[$index]}${NC}"
+                ((added_count++))
+            else
+                echo -e "${RED}❌ Número inválido: $num${NC}"
+            fi
+        else
+            if [[ -n "$num" ]]; then
+              echo -e "${RED}❌ Entrada inválida: '$num'. Por favor, use números.${NC}"
+            fi
+        fi
+    done
+
+    if [[ $added_count -eq 0 ]]; then
+        echo -e "${RED}❌ Nenhum arquivo válido selecionado. Commit cancelado.${NC}"
+        exit 1
+    fi
+}
+
 generate_commit() {
   local use_emojis_config=$(jq -r '.use_emojis' "$CONFIG_FILE")
   local use_scope_config=$(jq -r '.use_scope' "$CONFIG_FILE")
@@ -682,7 +748,20 @@ generate_commit() {
   generate_changelog
   [[ -n "$CHANGELOG_FILE" && -f "$CHANGELOG_FILE" ]] && git add "$CHANGELOG_FILE"
 
-  git add -A
+  local add_all_files
+  add_all_files=$(jq -r '.add_all_files // true' "$CONFIG_FILE")
+
+  if [[ "$add_all_files" == "true" ]]; then
+    git add -A
+  else
+    interactive_add
+  fi
+
+  # Verifica se há algo para commitar
+  if git diff --staged --quiet; then
+    echo -e "${YELLOW}⚠️ Nenhum arquivo foi selecionado para o commit. Operação cancelada.${NC}"
+    exit 1
+  fi
 
   local commit_args=()
   commit_args+=("-m" "$commit_final")
@@ -828,6 +907,15 @@ configure_comitar() {
     jq '.use_scope = true' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
   elif [[ "$choice" =~ ^[nN]$ ]]; then
     jq '.use_scope = false' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+  fi
+
+  # Configurar adição de todos os arquivos
+  current_add_all=$(jq -r '.add_all_files // true' "$CONFIG_FILE")
+  read -rp "Adicionar todos os arquivos automaticamente (git add -A)? (s/n) [atual: $([[ "$current_add_all" == "true" ]] && echo "sim" || echo "não")]: " choice
+  if [[ -z "$choice" || "$choice" =~ ^[sS]$ ]]; then
+    jq '.add_all_files = true' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+  elif [[ "$choice" =~ ^[nN]$ ]]; then
+    jq '.add_all_files = false' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
   fi
 
   # Configurar controle de tags
