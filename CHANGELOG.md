@@ -25,3 +25,4 @@
 - :✨: feat: exibição dos arquivos (por: Luiz Gustavo em 26-09-2025 22:40)
 - :🐛: fix: bug que não alterava a versão (por: Luiz Gustavo em 26-09-2025 22:59)
 - :🐛: fix: ajuste na regex que removia as aspas (por: Luiz Gustavo em 27-09-2025 10:18)
+- :🐛: fix: alterado fluxo na regex (por: Luiz Gustavo em 27-09-2025 10:32)

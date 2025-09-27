@@ -2,7 +2,7 @@
 ################################################################################
 # comitar - Commit semântico com configuração dinâmica, changelog automático e hook integrado
 #
-# DATA: 25/07/2025 - Versao 0.1.10
+# DATA: 25/07/2025 - Versao 0.1.11
 # -------------------------------------------------------------------------------
 # Autor: Luiz Gustavo <luizg.devlx@gmail.com>
 # -------------------------------------------------------------------------------
@@ -16,8 +16,8 @@ CONFIG_FILE=".comitar.json"
 CHANGELOG_FILE=""
 INSTALL_DIR="$HOME/.local/bin"
 
-readonly APP_VERSION="0.1.10"
-readonly APP_DATE="26/09/2025"
+readonly APP_VERSION="0.1.11"
+readonly APP_DATE="27/09/2025"
 readonly SCRIPT_NAME="$(basename "$0")"
 readonly WORK_DIR="$(pwd)"
 readonly COMITAR_INSTALL_ROOT="$HOME/.comitar"
@@ -529,8 +529,17 @@ check_and_update_version() {
       if [[ -n "$target_var" ]]; then
         local safe_var
         safe_var=$(printf '%s\n' "$target_var" | sed 's/[][\/.^$*+?(){}|]/\\&/g')
-        # 1) Valor entre aspas duplas: preserva as aspas e só troca o conteúdo
-        sed -i -E 's/^([[:space:]]*(?:export|readonly|declare[[:space:]]+-r|local[[:space:]]+-r)?[[:space:]]*)('"$safe_var"')[[:space:]]*[:=][[:space:]]*"([^"]*)"([[:space:]]*)(#.*)?$/\1\2="'"$new_version"'"\4\5/' "$target_file"
+        # Detecta o formato da linha para usar a regex apropriada
+        if grep -qE "^[[:space:]]*(export|readonly|declare[[:space:]]+-r|local[[:space:]]+-r)?[[:space:]]*${safe_var}[[:space:]]*[:=][[:space:]]*\"" "$target_file"; then
+          # 1) Valor entre aspas duplas
+          sed -i -E 's/^([[:space:]]*(export|readonly|declare[[:space:]]+-r|local[[:space:]]+-r)?[[:space:]]*)('"$safe_var"')[[:space:]]*[:=][[:space:]]*"([^"]*)"([[:space:]]*)(#.*)?$/\1\3="'"$new_version"'"\5\6/' "$target_file"
+        elif grep -qE "^[[:space:]]*(export|readonly|declare[[:space:]]+-r|local[[:space:]]+-r)?[[:space:]]*${safe_var}[[:space:]]*[:=][[:space:]]*'" "$target_file"; then
+          # 2) Valor entre aspas simples
+          sed -i -E 's/^([[:space:]]*(export|readonly|declare[[:space:]]+-r|local[[:space:]]+-r)?[[:space:]]*)('"$safe_var"')[[:space:]]*[:=][[:space:]]*'\''([^'\'']*)'\''([[:space:]]*)(#.*)?$/\1\3='\''"'"${new_version}"'"'\''\5\6/' "$target_file"
+        else
+          # 3) Valor sem aspas
+          sed -i -E 's/^([[:space:]]*(export|readonly|declare[[:space:]]+-r|local[[:space:]]+-r)?[[:space:]]*)('"$safe_var"')[[:space:]]*[:=][[:space:]]*([^[:space:]#]+)([[:space:]]*)(#.*)?$/\1\3='"$new_version"'\5\6/' "$target_file"
+        fi
       else
         sed -i "1s/.*/$new_version/" "$target_file"
       fi
