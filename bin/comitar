@@ -755,7 +755,7 @@ generate_commit() {
   [[ -n "$CHANGELOG_FILE" && -f "$CHANGELOG_FILE" ]] && git add "$CHANGELOG_FILE"
 
   local add_all_files
-  add_all_files=$(jq -r '.add_all_files // true' "$CONFIG_FILE")
+  add_all_files=$(jq -r '.add_all_files' "$CONFIG_FILE")
 
   echo "antes de rodar o add -A"
   echo $add_all_files
