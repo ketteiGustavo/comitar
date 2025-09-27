@@ -23,3 +23,5 @@
 - :🐛: fix: removido echo do select_files (por: Luiz Gustavo em 26-09-2025 22:30)
 - :🐛: fix: ajuste em bug visual no terminal (por: Luiz Gustavo em 26-09-2025 22:31)
 - :✨: feat: exibição dos arquivos (por: Luiz Gustavo em 26-09-2025 22:40)
+- :🐛: fix: bug que não alterava a versão (por: Luiz Gustavo em 26-09-2025 22:59)
+- :🐛: fix: ajuste na regex que removia as aspas (por: Luiz Gustavo em 27-09-2025 10:18)

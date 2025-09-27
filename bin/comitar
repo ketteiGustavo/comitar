@@ -2,7 +2,7 @@
 ################################################################################
 # comitar - Commit semântico com configuração dinâmica, changelog automático e hook integrado
 #
-# DATA: 25/07/2025 - Versao 0.0.3
+# DATA: 25/07/2025 - Versao 0.1.10
 # -------------------------------------------------------------------------------
 # Autor: Luiz Gustavo <luizg.devlx@gmail.com>
 # -------------------------------------------------------------------------------
@@ -16,7 +16,7 @@ CONFIG_FILE=".comitar.json"
 CHANGELOG_FILE=""
 INSTALL_DIR="$HOME/.local/bin"
 
-readonly APP_VERSION="0.1.6"
+readonly APP_VERSION="0.1.10"
 readonly APP_DATE="26/09/2025"
 readonly SCRIPT_NAME="$(basename "$0")"
 readonly WORK_DIR="$(pwd)"
@@ -528,9 +528,9 @@ check_and_update_version() {
 
       if [[ -n "$target_var" ]]; then
         local safe_var
-        safe_var=$(printf '%s\n' "$target_var" | sed -e 's/[][().*^$+{}?|\\]/\\&/g')
-        #sed -i -E "s/^(\s*${target_var}\s*[:=]\s*['"]?).*(['"]?)$/\1${new_version}\2/" "$target_file"
-        sed -i -E 's/^([[:space:]]*'"$safe_var"'[[:space:]]*[:=][[:space:]]*['"'"'"]?).*(['"'"'"]?)$/\1'"$new_version"'\2/' "$target_file"
+        safe_var=$(printf '%s\n' "$target_var" | sed 's/[][\/.^$*+?(){}|]/\\&/g')
+        # 1) Valor entre aspas duplas: preserva as aspas e só troca o conteúdo
+        sed -i -E 's/^([[:space:]]*(?:export|readonly|declare[[:space:]]+-r|local[[:space:]]+-r)?[[:space:]]*)('"$safe_var"')[[:space:]]*[:=][[:space:]]*"([^"]*)"([[:space:]]*)(#.*)?$/\1\2="'"$new_version"'"\4\5/' "$target_file"
       else
         sed -i "1s/.*/$new_version/" "$target_file"
       fi
@@ -658,10 +658,10 @@ get_commit_message() {
         if [[ "$line" == "FIM" ]]; then
             break
         fi
-        body_lines+="$line\n"
+        body_lines+=("$line")
     done
     # Remove a última quebra de linha adicionada
-    COMMIT_BODY=$(echo -e "${body_lines%\n}")
+    COMMIT_BODY=$(printf "%s\n" "${body_lines[@]}")
   fi
 }
 
