@@ -758,6 +758,7 @@ generate_commit() {
   add_all_files=$(jq -r '.add_all_files // true' "$CONFIG_FILE")
 
   echo "antes de rodar o add -A"
+  echo $add_all_files
   if [[ "$add_all_files" == "true" ]]; then
     git add -A
     echo "dentro do true"

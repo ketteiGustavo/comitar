@@ -17,3 +17,4 @@
 - :🐛: fix: bug adicionava todos arquivos no commit (por: Luiz Gustavo em 26-09-2025 21:54)
 - :🐛: fix: bug no git add -A (por: Luiz Gustavo em 26-09-2025 22:06)
 - :🐛: fix: bug no git add -A (por: Luiz Gustavo em 26-09-2025 22:11)
+- :🐛: fix: bug no git add -a (por: Luiz Gustavo em 26-09-2025 22:12)
