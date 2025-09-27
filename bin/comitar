@@ -734,6 +734,7 @@ interactive_add() {
 generate_commit() {
   local use_emojis_config=$(jq -r '.use_emojis' "$CONFIG_FILE")
   local use_scope_config=$(jq -r '.use_scope' "$CONFIG_FILE")
+  local show_list_config=$(jq -r '.show_list' "$CONFIG_FILE")
   local commit_prefix=""
   local commit_scope_formatted=""
 
@@ -749,6 +750,10 @@ generate_commit() {
   echo -e "${BLUE}Commit final:${NC} $commit_final"
   if [[ -n "$COMMIT_BODY" ]]; then
     echo -e "${BLUE}Corpo:${NC}\n$COMMIT_BODY"
+  fi
+
+  if [[ "$show_list_config" == "true" ]]; then
+    git status --short
   fi
 
   generate_changelog

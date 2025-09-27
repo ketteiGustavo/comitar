@@ -22,3 +22,4 @@
 - :🐛: fix: exibição correta do stage (por: Luiz Gustavo em 26-09-2025 22:29)
 - :🐛: fix: removido echo do select_files (por: Luiz Gustavo em 26-09-2025 22:30)
 - :🐛: fix: ajuste em bug visual no terminal (por: Luiz Gustavo em 26-09-2025 22:31)
+- :✨: feat: exibição dos arquivos (por: Luiz Gustavo em 26-09-2025 22:40)

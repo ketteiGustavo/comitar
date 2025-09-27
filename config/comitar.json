@@ -7,6 +7,7 @@
   "use_emojis": true,
   "use_scope": false,
   "add_all_files": false,
+  "show_list": true,
   "control_tag": false,
   "version_control": false,
   "version_targets": [],
