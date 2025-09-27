@@ -14,3 +14,4 @@
 - :✨: feat: inserido chave e função para controlar arquivos adicionados (por: Luiz Gustavo em 26-09-2025 21:21)
 - :🐛: fix: corrigido bug que não respeitava a chave como (por: Luiz Gustavo em 26-09-2025 21:36)
 - :🐛: fix: corrigido bug que impedia execução (por: Luiz Gustavo em 26-09-2025 21:42)
+- :🐛: fix: bug adicionava todos arquivos no commit (por: Luiz Gustavo em 26-09-2025 21:54)
