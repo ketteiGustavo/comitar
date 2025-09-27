@@ -9,6 +9,7 @@ set -e
 COMITAR_DIR="$HOME/.comitar"
 SHELL_RC=""
 
+
 test_colors() {
   if [ "$(tput colors 2>/dev/null)" -ge 8 ]; then
     RED="\e[31m"

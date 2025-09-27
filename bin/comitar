@@ -754,12 +754,18 @@ generate_commit() {
   local add_all_files
   add_all_files=$(jq -r '.add_all_files // true' "$CONFIG_FILE")
 
+  echo "antes de rodar o add -A"
   if [[ "$add_all_files" == "true" ]]; then
     git add -A
+    echo "dentro do true"
   else
     # Garante que nada seja estagiado "vaze" para este commit
+    echo "fora do true"
     git reset >/dev/null 2>&1
-    [[ -n "$CHANGELOG_FILE" && -f "$CHANGELOG_FILE" ]] && git add "$CHANGELOG_FILE"
+    if [[ -n "$CHANGELOG_FILE" && -f "$CHANGELOG_FILE" ]]; then
+      git add -- "$CHANGELOG_FILE"
+      SELECTED_FILES+=("$CHANGELOG_FILE")
+    fi
     interactive_add
   fi
 
