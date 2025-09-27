@@ -410,7 +410,7 @@ install_hook() {
 
 check_and_update_version() {
   local version_control
-  version_control=$(jq -r '.version_control // false' "$CONFIG_FILE")
+  version_control=$(jq -r '.version_control' "$CONFIG_FILE")
   [[ "$version_control" != "true" ]] && return
 
   mapfile -t version_targets < <(jq -c '.version_targets[]?' "$CONFIG_FILE")
@@ -475,7 +475,7 @@ check_and_update_version() {
     patch=${patch:-0}
 
     local version_build_config
-    version_build_config=$(jq -r '.version_build // false' "$CONFIG_FILE")
+    version_build_config=$(jq -r '.version_build' "$CONFIG_FILE")
 
     echo -e "${BOLD}Escolha o tipo de alteração:${NC}"
     echo "1. feat: Novo recurso (minor +1)"
@@ -649,7 +649,7 @@ get_commit_message() {
   # Captura o corpo do commit (descrição longa)
   COMMIT_BODY=""
   local use_body_config
-  use_body_config=$(jq -r '.use_commit_body // false' "$CONFIG_FILE")
+  use_body_config=$(jq -r '.use_commit_body' "$CONFIG_FILE")
   if [[ "$use_body_config" == "true" ]]; then
     echo -e "   💬  Digite a descrição longa (corpo do commit). Pressione Enter para nova linha."
     echo -e "      Digite ${BOLD}FIM${NC} em uma linha nova para concluir."
@@ -757,14 +757,10 @@ generate_commit() {
   local add_all_files
   add_all_files=$(jq -r '.add_all_files' "$CONFIG_FILE")
 
-  echo "antes de rodar o add -A"
-  echo $add_all_files
   if [[ "$add_all_files" == "true" ]]; then
     git add -A
-    echo "dentro do true"
   else
     # Garante que nada seja estagiado "vaze" para este commit
-    echo "fora do true"
     git reset >/dev/null 2>&1
     if [[ -n "$CHANGELOG_FILE" && -f "$CHANGELOG_FILE" ]]; then
       git add -- "$CHANGELOG_FILE"
@@ -785,9 +781,15 @@ generate_commit() {
     commit_args+=("-m" "$COMMIT_BODY")
   fi
 
-  # (Opcional) Mostra a lista final do que vai ser commitado
-  echo -e "${CYAN}Arquivos no stage:${NC}"
-  git diff --cached --name-only || true
+  # Mostra a lista final do que vai ser commitado
+  if [ -z "$(git diff --cached --name-only --diff-filter=ACMR)" ]; then
+    echo "Nenhum arquivo no stage."
+  else
+    echo -e "${CYAN}Arquivos no stage:${NC}"
+    git --no-pager diff --cached --name-status --diff-filter=ACMR
+  fi
+  echo
+  printf '%s\n' "${SELECTED_FILES[@]}"
 
   if git commit "${commit_args[@]}"; then
     echo -e "${GREEN}✔ Commit realizado com sucesso.${NC}"
@@ -818,7 +820,7 @@ ask_tags() {
   local control_tag
   local send_tags=false
 
-  control_tag=$(jq -r '.control_tag // false' "$CONFIG_FILE")
+  control_tag=$(jq -r '.control_tag' "$CONFIG_FILE")
   [[ "$control_tag" != "true" ]] && return
 
   read -rp "🏷️ Deseja criar uma tag agora? (s/n): " confirm_tag
@@ -842,7 +844,7 @@ ask_tags() {
 
 ask_push() {
   local default_push_config
-  default_push_config=$(jq -r '.default_push // false' "$CONFIG_FILE")
+  default_push_config=$(jq -r '.default_push' "$CONFIG_FILE")
   local ask_push_config
   ask_push_config=$(jq -r '.ask_push // true' "$CONFIG_FILE")
 
